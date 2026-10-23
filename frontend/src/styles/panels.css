@@ -1,0 +1,13 @@
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin-top: 18px; }
+.log { max-height: 220px; overflow: auto; display: grid; gap: 3px; font-size: 14px; }
+.log p { color: var(--muted); }
+.log-deal { color: var(--text) !important; font-weight: 600; }
+.log-error { color: var(--bad) !important; }
+.log-alert { color: var(--pink) !important; font-weight: 600; }
+
+.alerts { max-width: 720px; }
+.alerts .lede { margin: 6px 0 20px; }
+.alert-form { display: grid; grid-template-columns: 1fr 160px auto; gap: 12px; align-items: end; }
+@media (max-width: 640px) { .alert-form { grid-template-columns: 1fr; } }
+.watch-list { margin-top: 18px; }
+.watch-list li { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }

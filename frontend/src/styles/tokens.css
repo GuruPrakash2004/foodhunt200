@@ -1,0 +1,28 @@
+/* Tokens. Palette: ink #0A0A0A, cerulean #007BA7, pink #FF2D95. Pink is for the price and the one main action; blue is for selection and links. */
+:root {
+  --ink-ground: #0a0a0a;
+  --surface: #111214;
+  --surface-2: #17191c;
+  --surface-3: #202327;
+  --line: #26292e;
+
+  --text: #f2f2ef;
+  --muted: #9a9ca1;
+
+  --blue: #007ba7;
+  --blue-bright: #4cb8e0;   /* the primary, lightened so small text and links stay readable on the dark ground */
+  --pink: #ff2d95;
+  --good: #5fd48a;
+  --bad: #ff7a7a;
+  --zomato: #e23744;
+  --swiggy: #fc8019;
+
+  --font-display: "Unbounded", "Manrope Variable", system-ui, sans-serif;   /* wordmark and big numbers only */
+  --font-text: "Manrope Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --gutter: clamp(16px, 4vw, 40px);
+  --section-gap: clamp(56px, 7vw, 96px);
+  --radius: 8px;
+  --radius-sm: 6px;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}

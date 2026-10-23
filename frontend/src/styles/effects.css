@@ -1,0 +1,76 @@
+/* The show: glow, light, motion graphics. Layered on top of the layout so the layout stays clean without it. */
+
+/* captions and the two-colour display headline */
+.caption { font-size: 13px; letter-spacing: .32em; text-transform: uppercase; color: var(--muted); line-height: 1.9; }
+.caption .accent { color: var(--pink); }
+.caption b { color: var(--pink); font-weight: 400; }
+.intro-title { font: 800 clamp(44px, 7vw, 96px)/1 var(--font-text); letter-spacing: -.045em; margin-top: 14px; }
+.title-blue { color: var(--blue); text-shadow: 0 0 40px rgb(0 123 167 / .55); }
+.budget { font: 700 .86em/1 var(--font-display); letter-spacing: -.05em; text-shadow: 0 0 40px rgb(255 45 149 / .45); }
+.budget input { text-shadow: inherit; }
+.letter { display: inline-block; animation: letter-in .9s var(--ease) both; animation-delay: calc(var(--l) * 70ms + 150ms); }
+@keyframes letter-in { from { opacity: 0; transform: translateY(60%) rotateX(-70deg); } }
+
+/* light that follows the pointer, and the turning coin in the gap */
+.intro { position: relative; isolation: isolate; }
+.intro > *:not(.spotlight):not(.hero-logo) { position: relative; z-index: 1; }
+.spotlight { position: absolute; left: var(--sx, 30%); top: var(--sy, 40%); width: 520px; height: 520px; margin: -260px 0 0 -260px; z-index: 0;
+  border-radius: 50%; pointer-events: none; background: var(--blue); opacity: .15; filter: blur(90px); transition: left .35s var(--ease), top .35s var(--ease); }
+.hero-logo { position: absolute; left: 50.5%; top: 47%; margin: -115px 0 0 -115px; pointer-events: none; z-index: 0; }
+@media (max-width: 1240px) { .hero-logo { display: none; } }
+.logo3d::before { opacity: .18; }
+.logo3d-disc b { text-shadow: 0 0 22px rgb(255 45 149 / .7); }
+.logo3d-disc.back b { text-shadow: 0 0 22px rgb(61 180 224 / .6); }
+.logo3d-orbit span { box-shadow: 0 0 16px var(--pink); }
+
+/* the run button: a ring that leans toward the pointer and sends out radar pulses while hunting */
+.ring-button { position: relative; width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: transparent;
+  border: 1.5px solid var(--blue-bright); color: var(--text); box-shadow: 0 0 24px rgb(61 180 224 / .35);
+  transform: translate(var(--mx, 0), var(--my, 0)); transition: transform .25s var(--ease), border-color .25s var(--ease), background .25s var(--ease), color .25s var(--ease); }
+.ring-button:hover:not(:disabled) { border-color: var(--pink); background: var(--pink); color: #0a0a0a; }
+.ring-button:disabled { opacity: .55; cursor: progress; }
+.ring-button svg { transition: transform .3s var(--ease); }
+.ring-button:hover:not(:disabled) svg { transform: translateX(3px); }
+.ring-button.scanning::before, .ring-button.scanning::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 1.5px solid var(--pink); animation: radar 1.8s ease-out infinite; }
+.ring-button.scanning::after { animation-delay: .9s; }
+.ring-button.scanning svg { animation: nudge 1s ease-in-out infinite; }
+@keyframes radar { from { transform: scale(1); opacity: .9; } to { transform: scale(2.2); opacity: 0; } }
+@keyframes nudge { 50% { transform: translateX(5px); } }
+
+/* the receipt prints in, with a glowing total */
+.receipt { border-left: 6px solid var(--pink); border-radius: var(--radius) var(--radius) 0 0; animation: print .9s var(--ease) both; transform-origin: top; }
+.receipt-total strong { text-shadow: 0 0 28px rgb(255 45 149 / .4); }
+@keyframes print { from { clip-path: inset(0 0 100% 0); opacity: .4; transform: translateY(-14px); } to { clip-path: inset(0 0 -12px 0); } }   /* -12px keeps the torn edge visible */
+
+/* deal of the hour: the big clock */
+.statusline { background: var(--surface-2); border: 0; border-left: 6px solid var(--blue); border-radius: var(--radius); padding: 16px 22px; }
+.lede + .caption { margin-top: 16px; }
+.hour-clock { font: 700 clamp(22px, 3vw, 32px)/1 var(--font-display); letter-spacing: -.03em; }
+
+/* ticker of the cheapest deals */
+.ticker { overflow: hidden; margin-top: 12px; padding-block: 14px; background: var(--surface); border-radius: var(--radius); }
+.ticker-track { display: flex; width: max-content; gap: 48px; animation: marquee 38s linear infinite; padding-left: 48px; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+.ticker-item { white-space: nowrap; color: var(--muted); }
+.ticker-item b { color: var(--pink); font-family: var(--font-display); letter-spacing: -.02em; margin-right: 6px; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* sections rise, rows lift, new deals flash */
+.reveal { transform: translateY(32px); transition: opacity .8s var(--ease), transform .8s var(--ease); transition-delay: var(--d, 0ms); }
+.reveal.in { transform: none; }
+.row-main { transition: background .15s var(--ease), transform .2s var(--ease); }
+.row-main:hover { transform: translateX(4px); }
+.row-price { transition: transform .25s var(--ease); display: inline-block; }
+.row:hover .row-price { transform: scale(1.08); }
+.row-price, .final, .lane-head .from { text-shadow: 0 0 18px rgb(255 45 149 / .25); }
+
+/* while a popup moves, rest the busy background so the popup keeps every frame */
+.modal-open .logo3d-coin, .modal-open .logo3d-orbit, .modal-open .ticker-track, .modal-open .letter, .modal-open .ring-button::before, .modal-open .ring-button::after { animation-play-state: paused; }
+.modal-open .spotlight { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .letter, .receipt, .ticker-track, .ring-button.scanning::before, .ring-button.scanning::after, .ring-button.scanning svg { animation: none; }
+  .reveal { transform: none; transition: none; }
+  .spotlight { display: none; }
+  .row-main:hover, .row:hover .row-price { transform: none; }
+}
