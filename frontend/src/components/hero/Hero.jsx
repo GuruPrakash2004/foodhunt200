@@ -19,7 +19,7 @@ function Progress({ startedAt, found }) {
   );
 }
 
-export default function Hero({ params, setParams, running, startedAt, found, error, onRun, cheapest, labels, mobile, needsLogin, chime, setChime }) {
+export default function Hero({ params, setParams, running, startedAt, found, error, onRun, cheapest, labels, mobile, needsLogin, chime, setChime, addressBook, onStop }) {
   const [options, setOptions] = useState(() => window.location.hash === "#options");   // /#options opens the drawer
   const ring = useRef(null);
   useMagnetic(ring);
@@ -60,6 +60,7 @@ export default function Hero({ params, setParams, running, startedAt, found, err
             </svg>
           </button>
           <span className="caption">{running ? "Hunting…" : "Start the hunt"}</span>
+          {running && <button type="button" className="stop-button" onClick={onStop}>Stop hunt</button>}
           <button className="text-button" onClick={() => setOptions(true)} aria-haspopup="dialog">Options</button>
           <span className="intro-scope">{where} · {diet}</span>
         </div>
@@ -70,7 +71,7 @@ export default function Hero({ params, setParams, running, startedAt, found, err
         <Modal open={options} onClose={() => setOptions(false)} variant="drawer" title="Hunt options"
           subtitle="These apply to the next hunt."
           footer={<><span className="muted">{where} · up to ₹{params.budget}</span><button className="solid-button" onClick={() => setOptions(false)}>Done</button></>}>
-          <HuntOptions params={params} setParams={setParams} labels={labels} chime={chime} setChime={setChime} />
+          <HuntOptions params={params} setParams={setParams} labels={labels} chime={chime} setChime={setChime} addressBook={addressBook} />
         </Modal>
       </div>
       <Receipt deal={cheapest} budget={Number(params.budget)} />

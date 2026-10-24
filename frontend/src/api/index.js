@@ -11,7 +11,10 @@ export const getHistory = (key) => get(`/api/v1/deals/history?key=${encodeURICom
 export const saveFeedback = (body) => send("PUT", "/api/v1/feedback", body);
 
 export const startHunt = (params) => send("POST", "/api/v1/hunts", params);
+export const stopHunt = () => send("POST", "/api/v1/hunts/stop");
 export const getStatus = () => get("/api/v1/status");
+export const getAddresses = () => get("/api/v1/addresses");
+export const addToCart = (key) => send("POST", "/api/v1/deals/cart", { key });
 
 export const getWatches = () => get("/api/v1/watches");
 export const addWatch = (body) => send("POST", "/api/v1/watches", body);

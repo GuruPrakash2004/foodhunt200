@@ -8,7 +8,7 @@ React (frontend/) <--REST + SSE--> FastAPI (backend/app) --> Hunt (services/agen
 
 ## Request flow for a hunt
 1. `POST /api/hunts` -> `hunt_runner.start()` takes the single hunt lock (409 if busy) and creates a `hunts` row.
-2. `_run()` builds a `Hunt`, connects to each MCP server (OAuth in `services/oauth.py`), then loops: Gemini picks tools,
+2. `_run()` builds a `Hunt`, connects to each MCP server (OAuth in `services/oauth.py`), then loops: the model picks tools,
    `Hunt.call_tool` runs them, and `record_deal` validates each bill with `pricing.validate`.
 3. Every accepted deal is inserted via `repository.insert_deal` and emitted as an SSE `deal` event.
 4. `GET /api/hunts/{id}/events` streams events; the UI refetches `/api/deals` as they arrive.
@@ -19,8 +19,14 @@ React (frontend/) <--REST + SSE--> FastAPI (backend/app) --> Hunt (services/agen
   is keyed by `deal_key`, so it survives re-hunts. Price history = all `deals` rows with the same key.
 - `list_deals` returns the latest sighting per key plus `fees`, `savings`, `lowest_price`, `seen_count`.
 
+## Add to cart
+`Hunt._track_cart` keeps the cart-changing MCP calls made since the cart was last emptied. `record_deal` stores them on the deal (`deals.cart_calls`, JSON). `POST /deals/cart` replays them through `services/platform_tools.add_to_cart`, which refuses blocked tools and tools the platform does not list. Saved addresses come from `platform_tools.list_addresses` (read-only address tool, parsed best effort).
+
+## Models
+`services/models.router` calls NVIDIA's free preview chat models (`services/nvidia_models.py`, needs `NVIDIA_API_KEY`). It tries the one that worked last, then the configured and built-in list (checked to return tool calls), then every other chat model on the key. A failing model is skipped for longer each time it fails in a row; a rejected key stops the hunt with a clear message.
+
 ## Notes
-- The Gemini SDK call is blocking; it runs in `asyncio.to_thread` so the event loop stays free.
+- Model calls are async (OpenAI-compatible client), so the event loop stays free.
 - Tests swap `hunt_runner.HuntClass` for a fake and point `FOODHUNT_DB` at a temp file.
 
 ## How a bill becomes a deal

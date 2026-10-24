@@ -1,15 +1,17 @@
 import { billRows } from "../../lib/bill.js";
-import { rupees } from "../../lib/format.js";
+import { useNow } from "../../hooks/useNow.js";
+import { ago, rupees } from "../../lib/format.js";
 import CountUp from "../motion/CountUp.jsx";
 import Spend from "../deals/Spend.jsx";
 
-/** The cheapest verified bill so far, laid out like the receipt it came from. */
+/** The cheapest verified bill of the latest hunt, laid out like the receipt it came from. */
 export default function Receipt({ deal, budget }) {
+  const now = useNow(30000);
   const spare = deal ? Math.round(budget - deal.final_payable) : 0;
   const bill = deal ? billRows(deal) : null;
   return (
     <aside className="receipt" key={deal?.deal_key || "empty"} aria-label="Cheapest bill so far">
-      <p className="receipt-kicker">{deal ? `Cheapest so far · ${deal.platform === "swiggy" ? "Swiggy Food" : "Zomato"}` : "No bill yet"}</p>
+      <p className="receipt-kicker">{deal ? `Latest hunt · ${deal.platform === "swiggy" ? "Swiggy Food" : "Zomato"} · ${ago(deal.found_at, now)}` : "No bill yet"}</p>
       {deal ? (
         <>
           <h2 className="receipt-title">{deal.restaurant}</h2>

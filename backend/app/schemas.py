@@ -30,6 +30,10 @@ class FeedbackRequest(BaseModel):
     note: str | None = Field(None, max_length=500)
 
 
+class CartRequest(BaseModel):
+    key: str
+
+
 class WatchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=80)
     max_price: float = Field(gt=0)

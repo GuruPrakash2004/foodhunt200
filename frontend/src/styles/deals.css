@@ -41,6 +41,7 @@ td.wrap { white-space: normal; min-width: 150px; }
 .deal-row:hover td { background: var(--surface); }
 .final { font: 700 15px var(--font-display); letter-spacing: -.02em; color: var(--pink); }
 .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 4px; background: var(--surface-3); color: var(--text); }
+.tag.fair { background: color-mix(in srgb, var(--blue) 30%, var(--surface-3)); color: var(--text); margin-left: 8px; white-space: nowrap; }
 .tag.rescue { background: color-mix(in srgb, var(--good) 22%, var(--surface-3)); color: var(--good); margin-left: 8px; }
 .star { background: none; border: 0; padding: 6px; border-radius: var(--radius-sm); color: var(--muted); transition: color .15s var(--ease), background .15s var(--ease); display: grid; place-items: center; }
 .star:hover { background: var(--surface-2); color: var(--text); }
@@ -62,3 +63,11 @@ td.wrap { white-space: normal; min-width: 150px; }
 .view-switch .chip { border: 0; border-radius: 0; }
 .view-switch .chip + .chip { border-left: 1px solid var(--line); }
 .chip.with-icon { display: inline-flex; align-items: center; gap: 6px; }
+
+.cart-action { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.cart-button { background: var(--pink); color: var(--ink-ground); border: 0; border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.cart-button:disabled { opacity: .6; }
+.cart-button.added { background: transparent; color: var(--pink); box-shadow: inset 0 0 0 1px var(--pink); }
+
+.cart-open { color: var(--blue-bright); font-weight: 600; font-size: 13px; }
+.cart-qr { background: #fff; padding: 6px; border-radius: var(--radius-sm); display: block; }

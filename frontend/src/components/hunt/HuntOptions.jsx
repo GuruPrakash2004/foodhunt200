@@ -1,5 +1,31 @@
 import TermsInput from "./TermsInput.jsx";
 
+/** Pick a saved address from the platform accounts; falls back to typing a label when none could be loaded. */
+function AddressPicker({ book, labels, value, onChange }) {
+  const groups = Object.entries(book?.addresses || {}).filter(([, list]) => list.length);
+  const problems = Object.entries(book?.errors || {}).map(([p, m]) => `${labels[p] || p}: ${m}`);
+  return (
+    <div className="address-picker">
+      {groups.length > 0 ? (
+        <label>Deliver to
+          <select value={value} onChange={(e) => onChange(e.target.value)}>
+            {!groups.some(([, l]) => l.some((a) => a.label === value)) && <option value={value}>{value}</option>}
+            {groups.map(([p, list]) => (
+              <optgroup key={p} label={labels[p] || p}>
+                {list.map((a) => <option key={a.label} value={a.label}>{a.label}{a.text !== a.label ? ` · ${a.text.slice(0, 50)}` : ""}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <label>Address label<input value={value} onChange={(e) => onChange(e.target.value)} /></label>
+      )}
+      <button type="button" className="text-button" onClick={book?.reload} disabled={book?.loading}>{book?.loading ? "Loading addresses…" : "Refresh addresses"}</button>
+      {problems.map((m) => <p key={m} className="muted group-hint">{m}</p>)}
+    </div>
+  );
+}
+
 const Choice = ({ value, current, onPick, children }) => (
   <button type="button" className={`chip ${current === value ? "on" : ""}`} aria-pressed={current === value} onClick={() => onPick(value)}>{children}</button>
 );
@@ -13,7 +39,7 @@ const Group = ({ title, hint, children }) => (
 );
 
 /** The hunt settings, grouped by what they decide. Rendered inside the options drawer. */
-export default function HuntOptions({ params, setParams, labels, chime, setChime }) {
+export default function HuntOptions({ params, setParams, labels, chime, setChime, addressBook }) {
   const set = (k) => (v) => setParams({ ...params, [k]: v });
   const field = (k) => (e) => set(k)(e.target.value);
   return (
@@ -23,7 +49,7 @@ export default function HuntOptions({ params, setParams, labels, chime, setChime
           <Choice value="both" current={params.platform} onPick={set("platform")}>All</Choice>
           {Object.keys(labels).map((p) => <Choice key={p} value={p} current={params.platform} onPick={set("platform")}>{labels[p]}</Choice>)}
         </div>
-        <label>Address label<input value={params.address} onChange={field("address")} /></label>
+        <AddressPicker book={addressBook} labels={labels} value={params.address} onChange={set("address")} />
       </Group>
 
       <Group title="What to look for">

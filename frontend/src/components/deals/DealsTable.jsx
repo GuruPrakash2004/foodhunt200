@@ -1,19 +1,23 @@
 import { Fragment, useMemo, useState } from "react";
-import { km, minutes, rupees } from "../../lib/format.js";
+import { useNow } from "../../hooks/useNow.js";
+import { ago, km, minutes, rupees } from "../../lib/format.js";
 import DealDetail from "./DealDetail.jsx";
+import AddToCartButton from "./AddToCartButton.jsx";
 import StarIcon from "./StarIcon.jsx";
 
 const COLUMNS = [
-  ["restaurant", "Restaurant"], ["items", "Item"], ["platform", "App"],
+  ["found_at", "Hunted"], ["restaurant", "Restaurant"], ["items", "Item"], ["platform", "App"],
   ["item_total", "Base price", true], ["fees", "Fees", true], ["taxes", "Tax", true],
   ["savings", "Discount", true], ["final_payable", "Final price", true],
   ["distance_km", "Distance", true], ["eta_min", "ETA", true],
 ];
 
 export default function DealsTable({ deals, onFeedback, profile, labels = {} }) {
-  const [sort, setSort] = useState({ key: "final_payable", dir: 1 });
+  const now = useNow(30000);
+  const [sort, setSort] = useState({ key: "found_at", dir: -1 });   // newest hunt first, cheapest first within a hunt
   const [open, setOpen] = useState(null);
   const sorted = useMemo(() => [...deals].sort((a, b) => {
+    if (sort.key === "found_at") return ((a.hunt_id || 0) - (b.hunt_id || 0) || b.final_payable - a.final_payable) * sort.dir;   // by hunt, then price
     const x = a[sort.key], y = b[sort.key];
     if (x == null) return 1;
     if (y == null) return -1;
@@ -35,6 +39,7 @@ export default function DealsTable({ deals, onFeedback, profile, labels = {} }) 
                 {label}{sort.key === key ? (sort.dir > 0 ? " ▲" : " ▼") : ""}
               </th>
             ))}
+            <th>Cart</th>
             <th>Your note</th>
           </tr>
         </thead>
@@ -47,8 +52,12 @@ export default function DealsTable({ deals, onFeedback, profile, labels = {} }) 
                     aria-label={d.favorite ? "Remove favourite" : "Add favourite"}
                     onClick={() => onFeedback(d.deal_key, { favorite: !d.favorite })}><StarIcon filled={d.favorite} /></button>
                 </td>
+                <td className="wrap hunted" title={d.found_at}>{ago(d.found_at, now)}</td>
                 <td className="wrap">{d.restaurant}{d.source === "food_rescue" && <span className="tag rescue">rescue</span>}</td>
-                <td className="wrap">{d.items}</td>
+                <td className="wrap">{d.items}
+                  {d.rival && <span className="tag fair" title={`${labels[d.rival.platform] || d.rival.platform} charges ${rupees(d.rival.final_payable)}`}>
+                    {d.rival.gap ? `${rupees(d.rival.gap)} cheaper than ${labels[d.rival.platform] || d.rival.platform}` : `same price on ${labels[d.rival.platform] || d.rival.platform}`}</span>}
+                </td>
                 <td><span className="plat"><i className={`dot ${d.platform}`} />{labels[d.platform] || d.platform}</span></td>
                 <td className="num">{rupees(d.item_total)}</td>
                 <td className="num">{rupees(d.fees)}</td>
@@ -57,12 +66,13 @@ export default function DealsTable({ deals, onFeedback, profile, labels = {} }) 
                 <td className="num final">{rupees(d.final_payable)}</td>
                 <td className="num">{km(d.distance_km)}</td>
                 <td className="num">{minutes(d.eta_min)}</td>
+                <td onClick={(e) => e.stopPropagation()}><AddToCartButton deal={d} label={labels[d.platform]} /></td>
                 <td onClick={(e) => e.stopPropagation()}>
                   <input className="note" defaultValue={d.note} placeholder="Add a note" aria-label={`Note for ${d.restaurant}`}
                     onBlur={(e) => e.target.value !== d.note && onFeedback(d.deal_key, { note: e.target.value })} />
                 </td>
               </tr>
-              {open === d.deal_key && <tr className="detail-row"><td colSpan={COLUMNS.length + 2}><DealDetail deal={d} profile={profile} /></td></tr>}
+              {open === d.deal_key && <tr className="detail-row"><td colSpan={COLUMNS.length + 3}><DealDetail deal={d} profile={profile} labels={labels} /></td></tr>}
             </Fragment>
           ))}
         </tbody>

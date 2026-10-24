@@ -3,10 +3,11 @@ import { shareDeal } from "../../lib/shareCard.js";
 import { getHistory } from "../../api/index.js";
 import { billRows } from "../../lib/bill.js";
 import { rupees } from "../../lib/format.js";
+import AddToCartButton from "./AddToCartButton.jsx";
 import Sparkline from "./Sparkline.jsx";
 import Spend from "./Spend.jsx";
 
-export default function DealDetail({ deal: d, profile }) {
+export default function DealDetail({ deal: d, profile, labels = {} }) {
   const [history, setHistory] = useState([]);
   const [shared, setShared] = useState("");
   const share = async () => setShared(await shareDeal(d, profile).catch(() => "failed"));
@@ -24,12 +25,13 @@ export default function DealDetail({ deal: d, profile }) {
       </table>
       <div>
         <Spend deal={d} />
+        <AddToCartButton deal={d} label={labels[d.platform]} />
         <h3 className="panel-title">Price history</h3>
         <Sparkline points={history} />
         <button className="text-button" onClick={share}>Share as image</button>
         {shared && <span className="muted"> {shared === "downloaded" ? "Saved to your downloads." : shared === "failed" ? "Could not make the image." : ""}</span>}
         {bill.approximate && <p className="muted">Saved before bills were kept line by line, so this split is approximate.</p>}
-        <p className="muted">Every line above is copied from {d.platform}'s own bill. Order it in the app.</p>
+        <p className="muted">Every line above is copied from {d.platform}'s own bill. {d.can_add_to_cart ? "Add it to your cart here, then pay in the app." : "Order it in the app."}</p>
       </div>
     </div>
   );

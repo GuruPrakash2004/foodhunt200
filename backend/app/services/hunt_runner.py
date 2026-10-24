@@ -43,6 +43,7 @@ async def _run(hunt_id: int, params: dict) -> None:
         state["wake"].set()  # push to the stream right away
     args = argparse.Namespace(**params, verbose=False, watch=0)
     status, summary = "done", ""
+    hunt = None
     try:
         hunt = HuntClass(args, emit=emit, on_deal=lambda d: repo.insert_deal(hunt_id, d))
         async with AsyncExitStack() as stack:
@@ -57,6 +58,12 @@ async def _run(hunt_id: int, params: dict) -> None:
             save_deals(deals)
         for alert in alerts_for(hunt_id):
             emit(alert)
+    except asyncio.CancelledError:   # the user pressed Stop: keep the deals already found
+        status, summary = "stopped", "Stopped by you."
+        deals = getattr(hunt, "deals", [])
+        if deals:
+            save_deals(deals)
+        emit({"type": "status", "text": f"Stopped. {len(deals)} deal(s) kept."})
     except (Exception, SystemExit) as e:
         status = "error"
         traceback.print_exc()  # full detail in the server terminal
@@ -77,5 +84,13 @@ async def start(params: dict) -> int | None:
     await hunt_lock.acquire()
     hunt_id = repo.start_hunt(params)
     hunts[hunt_id] = {"events": [], "done": False, "wake": asyncio.Event()}
-    asyncio.create_task(_run(hunt_id, params))
+    hunts[hunt_id]["task"] = asyncio.create_task(_run(hunt_id, params))
     return hunt_id
+
+
+def stop() -> bool:
+    """Cancel the running hunt. Deals already found stay saved. False if nothing is running."""
+    running = [s["task"] for s in hunts.values() if not s["done"] and s.get("task")]
+    for task in running:
+        task.cancel()
+    return bool(running)

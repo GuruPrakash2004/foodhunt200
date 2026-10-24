@@ -25,3 +25,8 @@ def test_extra_items_default_and_limits():
         except ValueError:
             continue
         raise AssertionError("out-of-range extra_items accepted")
+
+
+def test_prompt_asks_for_related_filler_items():
+    text = build_prompt(args(extra_items=2))
+    assert "CHEAPEST related item" in text and "Never add an unrelated dish" in text

@@ -1,7 +1,7 @@
 # FoodHunt200
 
 Finds Zomato/Swiggy meals whose **all-in price** (item + fees + tax − offers) is at or under a budget (default ₹200).
-An AI agent (Gemini) drives the platforms' official MCP servers; a local validator rejects any bill that doesn't add up.
+An AI agent (free NVIDIA-hosted models) drives the platforms' official MCP servers; a local validator rejects any bill that doesn't add up.
 The app **never places orders or payments**. The user orders in the platform's own app.
 
 ## Layout
@@ -45,7 +45,7 @@ npm install && npm run build      # served by FastAPI at http://127.0.0.1:8000
 - Routers stay thin: SQL lives in `db/repository.py`, logic in `services/`, config in `config.py`.
 - Frontend: data fetching in `api/` + `hooks/`, presentational components under `components/<area>/`,
   one CSS file per area in `styles/`, all colours via tokens in `styles/tokens.css`.
-- Model calls go through `services/models.router`: per-call timeout, automatic switch to a working Gemini model, remembered. Don't call the SDK directly.
+- Model calls go through `services/models.router`: per-call timeout, automatic switch to the next free NVIDIA model, remembered. Don't call the SDK directly.
 - Platforms are defined once in `app/config.py` (`PLATFORMS`, `PLATFORM_LABELS`); the UI, validation and agent read from it. Add a server there, not in components.
 - Never read or print `backend/.env` or `backend/data/tokens/` (secrets and login tokens).
 - Theme: `#0A0A0A` ground, `#007BA7` primary, `#FF2D95` accent. Use `design-taste-frontend` for UI work.

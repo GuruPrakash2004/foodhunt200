@@ -28,6 +28,7 @@ class Deal:
     distance_km: float | None = None
     eta_min: int | None = None
     bill_lines: list = field(default_factory=list)   # [{label, amount}] exactly as the platform printed them
+    cart_calls: list = field(default_factory=list)   # [{tool, args}] the cart calls that built this bill, replayed by "Add to cart"
     found_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
 
     def computed_total(self) -> float:

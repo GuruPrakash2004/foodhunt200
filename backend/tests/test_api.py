@@ -119,3 +119,36 @@ def test_login_route_serves_the_app_but_unknown_api_paths_stay_404(client):
             assert r.status_code == 200 and '<div id="root">' in r.text
         assert c.get("/../../etc/passwd").status_code in (200, 404)   # never a file outside dist
         assert c.get("/favicon.svg").headers["content-type"].startswith("image/svg")
+
+
+def test_stop_cancels_a_running_hunt_and_keeps_its_deals(client, monkeypatch):
+    c, runner = client
+
+    class Slow(FakeHunt):
+        async def run(self):
+            await super().run()
+            await asyncio.sleep(30)
+
+    monkeypatch.setattr(runner, "HuntClass", Slow)
+    assert c.post("/api/v1/hunts/stop").status_code == 409          # nothing running yet
+    hid = c.post("/api/v1/hunts", json={"budget": 200, "platform": "zomato"}).json()["hunt_id"]
+    assert c.post("/api/v1/hunts/stop").status_code == 200
+    with c.stream("GET", f"/api/v1/hunts/{hid}/events") as r:
+        events = [line for line in r.iter_lines() if line.startswith("data:")]
+    assert '"status": "stopped"' in events[-1]
+    assert len(c.get("/api/v1/deals").json()) == 2                  # deals found before Stop are kept
+    assert not runner.is_running()
+
+
+def test_deals_older_than_four_hours_are_hidden(client):
+    from datetime import datetime, timedelta
+    from app.services.pricing import Deal
+    from app.db import repository as repo
+    c, _ = client
+    old = (datetime.now() - timedelta(hours=5)).isoformat(timespec="seconds")
+    repo.insert_deal(None, Deal(platform="zomato", restaurant="Old Mess", items="Thali x1", item_total=100, taxes=5,
+                                final_payable=105, found_at=old))
+    repo.insert_deal(None, Deal(platform="zomato", restaurant="New Mess", items="Thali x1", item_total=100, taxes=5, final_payable=105))
+    assert [d["restaurant"] for d in c.get("/api/v1/deals").json()] == ["New Mess"]
+    assert len(c.get("/api/v1/deals?max_age_hours=6").json()) == 2
+    assert len(repo.list_deals(max_age_hours=None)) == 2            # exports and history still see everything

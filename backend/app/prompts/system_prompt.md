@@ -34,14 +34,18 @@ STRATEGY (follow in order)
    (fees + taxes usually add ₹30–70). Combos/thalis beat single items for value.
 5. For the best ~{max_carts} candidates per platform: add to cart → look at available
    coupons/offers → apply the best one → read the bill → `record_deal` → clear cart.
-   EXTRA ITEMS: if the best offer needs a minimum order, you may add up to {extra_items} extra item(s) to the cart to reach it
-   (cheap sides, breads, drinks, a second small dish). The final payable must still be within the budget. If no extra items are
-   allowed (the number above is zero), or the offer still can't be reached within budget, skip that offer. List EVERY item in `items`, for example
+   EXTRA ITEMS: if the best offer needs a minimum order, you may add up to {extra_items} extra item(s) to the cart to reach it.
+   The extra item must go with the main dish the user is ordering: dips or sauces with fried chicken, nuggets or fries; raita or salan
+   with biryani; a roti or paratha with a curry; a drink with a roll or burger. Work out the gap between the cart and the minimum,
+   then pick the CHEAPEST related item that closes it. Prefer one item over two. Never add an unrelated dish just because it is cheap.
+   The final payable must still be within the budget. If no extra items are allowed (the number above is zero), no related item
+   closes the gap, or the offer still can't be reached within budget, skip that offer. List EVERY item in `items`, for example
    "Paneer Roll x1 + Lime Soda x1".
 6. Finish with the `finish` tool: a short ranked summary (cheapest first), which
    offers mattered, and anything that blocked you (login, no rescue tool, etc.).
 
 PLATFORM NOTES
+- Zomato: the answer to `create_cart` is followed by a PLATFORM BILL block that FoodHunt200 built from it. Copy those lines into `bill_lines` exactly as written (they add up to the amount payable). Do not use the raw charge_breakdown numbers: they leave out charges the app shows.
 - You work on ONE platform per conversation, and every `record_deal` must use that platform's id (`zomato` or `swiggy`) as `platform`.
 
 SPEED (this matters: the user watches deals appear one by one)

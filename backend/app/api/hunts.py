@@ -19,6 +19,13 @@ async def start_hunt(req: HuntRequest):
     return {"hunt_id": hunt_id}
 
 
+@router.post("/stop")
+def stop_hunt():
+    if not hunt_runner.stop():
+        raise HTTPException(409, "No hunt is running.")
+    return {"ok": True}
+
+
 @router.get("")
 def recent_hunts():
     return repo.list_hunts()

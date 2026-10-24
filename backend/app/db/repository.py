@@ -1,4 +1,5 @@
 """All SQL for the app lives here: deals, hunts, feedback and watches."""
+import difflib
 import json
 import re
 from datetime import datetime, timedelta
@@ -9,7 +10,8 @@ from app.services.pricing import Deal
 
 DEAL_COLS = ["platform", "restaurant", "items", "item_total", "delivery_fee", "platform_fee",
              "packaging_fee", "taxes", "other_charges", "discount", "final_payable", "offer",
-             "source", "distance_km", "eta_min", "bill_lines", "found_at"]
+             "source", "distance_km", "eta_min", "bill_lines", "cart_calls", "found_at"]
+JSON_COLS = ("bill_lines", "cart_calls")
 
 SORTS = {
     "price": "final_payable ASC", "price_desc": "final_payable DESC", "base": "item_total ASC",
@@ -25,8 +27,10 @@ def deal_key(platform: str, restaurant: str, items: str) -> str:
 def init_db() -> None:
     with connect() as con:
         con.executescript(SCHEMA)
-        if "bill_lines" not in [r["name"] for r in con.execute("PRAGMA table_info(deals)")]:   # databases from before bills were stored line by line
-            con.execute("ALTER TABLE deals ADD COLUMN bill_lines TEXT")
+        have = [r["name"] for r in con.execute("PRAGMA table_info(deals)")]
+        for column in JSON_COLS:   # databases from before bills / cart calls were stored
+            if column not in have:
+                con.execute(f"ALTER TABLE deals ADD COLUMN {column} TEXT")
         empty = con.execute("SELECT COUNT(*) FROM deals").fetchone()[0] == 0
     if empty and config.LEGACY_DEALS_FILE.exists():  # carry over history from the first CLI version
         try:
@@ -92,13 +96,21 @@ def insert_deal(hunt_id: int | None, d: Deal) -> None:
             f"INSERT INTO deals (hunt_id, deal_key, {', '.join(DEAL_COLS)}) "
             f"VALUES (?, ?, {', '.join('?' * len(DEAL_COLS))})",
             [hunt_id, deal_key(d.platform, d.restaurant, d.items)]
-            + [json.dumps(row[c], ensure_ascii=False) if c == "bill_lines" else row[c] for c in DEAL_COLS])
+            + [json.dumps(row[c], ensure_ascii=False) if c in JSON_COLS else row[c] for c in DEAL_COLS])
+
+
+FRESH = object()   # "use the default freshness window"
 
 
 def list_deals(platform=None, min_price=None, max_price=None, max_distance=None, q=None,
-               favorites=False, sort="price", hunt_id=None) -> list[dict]:
-    """Latest sighting of each distinct deal, joined with feedback and price stats."""
+               favorites=False, sort="price", hunt_id=None, max_age_hours=FRESH, best_only=False) -> list[dict]:
+    """Latest sighting of each distinct deal, joined with feedback and price stats.
+    Only deals seen within max_age_hours (default config.DEAL_MAX_AGE_HOURS) are returned; pass None for all of them."""
+    if max_age_hours is FRESH:
+        max_age_hours = config.DEAL_MAX_AGE_HOURS
     where, args = ["rn = 1"], []
+    if max_age_hours:
+        where.append("found_at >= ?"); args.append((datetime.now() - timedelta(hours=max_age_hours)).isoformat(timespec="seconds"))
     if platform:
         where.append("platform = ?"); args.append(platform)
     if min_price is not None:
@@ -131,8 +143,50 @@ def list_deals(platform=None, min_price=None, max_price=None, max_distance=None,
         r["fees"] = round(r["delivery_fee"] + r["platform_fee"] + r["packaging_fee"] + r["other_charges"], 2)
         r["savings"] = abs(r["discount"])
         r["favorite"] = bool(r["favorite"])
-        r["bill_lines"] = json.loads(r["bill_lines"]) if r.get("bill_lines") else []   # the platform's own labels, when we have them
+        for column in JSON_COLS:   # bill_lines: the platform's own labels; cart_calls: what "Add to cart" replays (empty for old deals)
+            r[column] = json.loads(r[column]) if r.get(column) else []
+        r["can_add_to_cart"] = bool(r["cart_calls"])
+    _mark_rivals(rows)
+    if best_only:   # the dearer twin goes, and so does a cross-check price that matched nothing (it may be over budget)
+        rows = [r for r in rows if r["cheaper_here"] and (r["rival"] or r["source"] != "cross_check")]
     return rows
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+def _restaurant(name: str) -> str:
+    return _norm(re.split(r"\s+[-–(]|\(", name, maxsplit=1)[0])   # "Burger King - Indiranagar" and "Burger King" are the same chain
+
+
+def _main_dish(items: str) -> str:
+    return _norm(_dish(items.split("+")[0]))    # the extra filler items differ between apps; the main dish is what is compared
+
+
+def _mark_rivals(rows: list[dict]) -> None:
+    """Pair each deal with the same dish from the same restaurant on the other app: `rival` is that deal's platform and price,
+    `cheaper_here` says which of the two is the better buy."""
+    for r in rows:
+        r["rival"], r["cheaper_here"] = None, True
+    for a in rows:
+        for b in rows:
+            if a["platform"] == b["platform"] or _restaurant(a["restaurant"]) != _restaurant(b["restaurant"]):
+                continue
+            da, db = _main_dish(a["items"]), _main_dish(b["items"])
+            if da != db and difflib.SequenceMatcher(None, da, db).ratio() < 0.8:
+                continue
+            if a["rival"] is None or b["final_payable"] < a["rival"]["final_payable"]:
+                a["rival"] = {"platform": b["platform"], "final_payable": b["final_payable"], "deal_key": b["deal_key"]}
+    for r in rows:
+        if r["rival"]:
+            gap = round(r["rival"]["final_payable"] - r["final_payable"], 2)
+            r["cheaper_here"] = gap >= 0                # a tie keeps both
+            r["rival"]["gap"] = abs(gap)
+
+
+def get_deal(key: str) -> dict | None:
+    return next((d for d in list_deals() if d["deal_key"] == key), None)
 
 
 def history(key: str) -> list[dict]:

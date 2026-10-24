@@ -1,26 +1,23 @@
-"""The hunting agent: Gemini (brain) <-> this loop <-> official MCP servers (Zomato, Swiggy Food)
+"""The hunting agent: an NVIDIA-hosted model (brain) <-> this loop <-> official MCP servers (Zomato, Swiggy Food)
                                                     <-> local tools: record_deal (validated by pricing.py), finish
 
 Safety: any MCP tool that could place an order or take payment is never shown to the model.
 """
 import asyncio
 import json
-import os
 import re
 from collections import deque
+from types import SimpleNamespace
 from contextlib import AsyncExitStack
 
-from google import genai
-from google.genai import types
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
-from app.config import (BLOCKED_TOOLS, KEEP_TURNS, MAX_TURNS, MODEL_TIMEOUT_S, PLATFORMS, PROMPT_FILE,
-                        THINKING_LEVEL, TOOL_OUTPUT_LIMIT)
+from app.config import BLOCKED_TOOLS, KEEP_TURNS, MAX_TURNS, PLATFORMS, PROMPT_FILE, TOOL_OUTPUT_LIMIT
 from app.services.errors import describe
 from app.services.models import router
 from app.services.oauth import make_oauth
-from app.services import bill
+from app.services import bill, zomato_bill
 from app.services.pricing import Deal, validate
 
 LOCAL_TOOLS = [
@@ -49,7 +46,7 @@ LOCAL_TOOLS = [
                 },
                 "final_payable": {"type": "number", "description": "the 'To Pay' amount exactly as the platform shows it"},
                 "offer": {"type": "string", "description": "the coupon or offer name that was applied"},
-                "source": {"type": "string", "enum": ["menu", "food_rescue"]},
+                "source": {"type": "string", "enum": ["menu", "food_rescue", "cross_check"]},
                 "distance_km": {"type": "number"},
                 "eta_min": {"type": "integer"},
             },
@@ -71,6 +68,23 @@ LOCAL_TOOLS = [
 # Tools that only read can run side by side; anything that touches the cart runs one at a time, in order.
 READ_ONLY = re.compile(r"search|menu|list|find|nearby|rescue|restaurant|address|offer|coupon", re.I)
 MUTATING = re.compile(r"add|remove|clear|apply|update|set_|select|delete|empty", re.I)
+CART_TOOL = re.compile(r"^(?!get_|fetch_|list_|search_)\w*(cart|coupon)", re.I)   # tools that change the cart or its offer (not address or menu lookups)
+CART_RESET = re.compile(r"clear|empty|flush", re.I)
+CART_REPLACE = re.compile(r"^create_\w*cart", re.I)   # Zomato builds the whole cart in one call, replacing any earlier one
+
+
+TRIMMED = "[older result trimmed]"
+CROSS_CHECK_DEALS = 3     # how many of the cheapest deals are priced on the other app
+CROSS_CHECK_TURNS = 14    # model turns allowed per cross-check
+CROSS_CHECK_BUDGET = 3    # a cross-check bill may be up to this many times the budget (it is only there to compare)
+
+
+def _parse_args(raw: str | None) -> dict:
+    try:
+        args = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return args if isinstance(args, dict) else {}
 
 
 def is_parallel_safe(tool_name: str) -> bool:
@@ -110,16 +124,11 @@ class Hunt:
         self.on_deal = on_deal or (lambda deal: None)
         self.platform_output: dict[str, deque] = {}   # what each platform actually returned (full text), newest last
         self.error = ""  # set when a model failure stopped the hunt early
-        self.thinking = True  # use FOODHUNT_THINKING level until the model rejects it
-        self.client = genai.Client(
-            api_key=os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"),
-            http_options=types.HttpOptions(
-                timeout=int(MODEL_TIMEOUT_S * 1000),
-                retry_options=types.HttpRetryOptions(attempts=1)))  # the router handles retries by switching model
         self.sessions: dict[str, ClientSession] = {}
         self.tool_map: dict[str, tuple[str, str]] = {}  # model-facing name -> (platform, real name)
         self.tools: list[dict] = list(LOCAL_TOOLS)
         self.deals: list[Deal] = []
+        self.cart_calls: dict[str, list[dict]] = {}   # per platform: cart-changing calls since the cart was last emptied
         self.summary = ""
 
     async def connect(self, stack: AsyncExitStack):
@@ -170,9 +179,10 @@ class Hunt:
         if errors:
             return self._rejected(platform, data, errors)
         deal = Deal(platform=platform, restaurant=str(data.get("restaurant", "")).strip(), items=str(data.get("items", "")).strip(),
-                    final_payable=final, bill_lines=lines, offer=str(data.get("offer") or ""), source=data.get("source") or "menu",
+                    final_payable=final, bill_lines=lines, offer=str(data.get("offer") or ""), cart_calls=list(self.cart_calls.get(platform, [])), source=data.get("source") or "menu",
                     distance_km=data.get("distance_km"), eta_min=data.get("eta_min"), **bill.classify(lines))
-        errors = validate(deal, self.args.budget)
+        # A cross-check price is kept even when over budget: it is only there to be compared with the other app's price.
+        errors = validate(deal, self.args.budget * (CROSS_CHECK_BUDGET if deal.source == "cross_check" else 1))
         if errors:
             return self._rejected(platform, data, errors)
         if any(d.key() == deal.key() for d in self.deals):
@@ -183,6 +193,17 @@ class Hunt:
         print(f"  ✓ ₹{deal.final_payable:>6.0f}  {deal.platform:<6} {deal.restaurant} — {deal.items}"
               f"  ({deal.offer or 'no offer'})")
         return f"Recorded. {len(self.deals)} deal(s) so far."
+
+    def _track_cart(self, platform: str, tool: str, args: dict) -> None:
+        """Remember the calls that built the current cart so a deal can be added to the user's cart later."""
+        if not CART_TOOL.search(tool):
+            return
+        if CART_RESET.search(tool):
+            self.cart_calls[platform] = []
+        elif CART_REPLACE.search(tool):
+            self.cart_calls[platform] = [{"tool": tool, "args": args}]
+        else:
+            self.cart_calls.setdefault(platform, []).append({"tool": tool, "args": args})
 
     async def call_tool(self, name: str, args: dict) -> str:
         if name == "record_deal":
@@ -195,8 +216,13 @@ class Hunt:
         self.emit({"type": "step", "text": f"{platform}: {real} {json.dumps(args, ensure_ascii=False)[:120]}"})
         try:
             res = await self.sessions[platform].call_tool(real, args)
-            self.platform_output.setdefault(platform, deque(maxlen=24)).append(full_result_text(res))   # kept whole, to check bills against
-            return mcp_result_to_text(res)
+            full = full_result_text(res)
+            failed = getattr(res, "isError", False)
+            extra = "" if failed or platform != "zomato" else zomato_bill.summary(full)   # Zomato's itemised charges miss some the app shows
+            self.platform_output.setdefault(platform, deque(maxlen=24)).append(extra + full)   # kept whole, to check bills against
+            if not failed:
+                self._track_cart(platform, real, args)
+            return (extra + full)[:TOOL_OUTPUT_LIMIT] if extra else mcp_result_to_text(res)
         except Exception as e:
             return f"TOOL ERROR calling {real}: {e!r}"
 
@@ -204,32 +230,34 @@ class Hunt:
         """Hunt every connected platform at the same time; each has its own conversation with the model."""
         summaries = await asyncio.gather(*(self._run_platform(p) for p in self.sessions))
         self.summary = "\n".join(f"{p}: {t.strip()}" for p, t in zip(self.sessions, summaries) if t and t.strip())
+        if len(self.sessions) > 1 and not self.error:
+            await self.cross_check()
 
-    def _config(self, platform: str, thinking: bool) -> types.GenerateContentConfig:
-        declarations = [
-            types.FunctionDeclaration(name=t["name"], description=t["description"], parameters_json_schema=t["input_schema"])
-            for t in self.tools if t["name"] in ("record_deal", "finish") or t["name"].startswith(f"{platform}__")]
-        return types.GenerateContentConfig(
-            system_instruction=build_prompt(self.args), max_output_tokens=4096,
-            tools=[types.Tool(function_declarations=declarations)],
-            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL) if thinking and THINKING_LEVEL else None,
-        )
+    async def cross_check(self):
+        """Price each of the cheapest deals' dishes on the other app too, so the list can keep whichever app is cheaper."""
+        found = sorted((d for d in self.deals if d.source != "cross_check"), key=lambda d: d.final_payable)[:CROSS_CHECK_DEALS]
+        self.emit({"type": "status", "text": f"Checking {len(found)} top deal(s) on the other app for a fairer price..."})
+        for deal in found:
+            for other in (p for p in self.sessions if p != deal.platform):
+                task = (f"Cross-check, not a new hunt. {deal.platform} offers '{deal.items}' from {deal.restaurant} for ₹{deal.final_payable:.0f} all-in. "
+                        f"On {other} ONLY, find the same restaurant (or the same chain nearest to the address) and the same main dish, "
+                        f"build the cart with the same items, apply its best offer, read the bill and call record_deal with source=\"cross_check\". "
+                        f"If {other} does not sell it, call finish saying so. Stop after at most {CROSS_CHECK_TURNS} steps. Clear the cart when done.")
+                await self._run_platform(other, task=task, max_turns=CROSS_CHECK_TURNS)
+
+    def _openai_tools(self, platform: str) -> list[dict]:
+        """The tools this platform's conversation may use: the local ones plus that platform's own."""
+        return [{"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]}}
+                for t in self.tools if t["name"] in ("record_deal", "finish") or t["name"].startswith(f"{platform}__")]
 
     def _switched(self, old: str, new: str, why: str) -> None:
         text = f"Model {old} failed ({why}). Switched to {new}."
         print(text)
         self.emit({"type": "status", "text": text})
 
-    async def _generate(self, contents, platform: str):
-        """One model call. Switches model on failure; drops the thinking level if a model rejects it."""
-        try:
-            return await router.generate(self.client, contents, lambda: self._config(platform, self.thinking), self._switched)
-        except Exception as e:
-            if self.thinking and "think" in str(e).lower():
-                self.thinking = False
-                return await router.generate(self.client, contents, lambda: self._config(platform, False), self._switched)
-            raise
+    async def _generate(self, messages: list[dict], platform: str):
+        """One model call. Switches to the next free model on failure."""
+        return await router.generate(messages, self._openai_tools(platform), self._switched)
 
     async def _run_calls(self, calls) -> list[str]:
         """Run one turn's tool calls: independent reads together, cart changes one by one, results in call order."""
@@ -246,40 +274,43 @@ class Hunt:
                 await one(i)
         return outputs
 
-    async def _run_platform(self, platform: str) -> str:
-        contents = [types.Content(role="user", parts=[types.Part(text=(
-            f"Start the hunt now. Budget ₹{self.args.budget} all-in. Work ONLY on {platform}; "
-            f"the other platform is handled separately. Record each deal the moment its bill is verified."))])]
-        stale: list[tuple[int, types.Part]] = []  # (turn, tool-result part) so old results can be shrunk
-        for turn in range(MAX_TURNS):
+    async def _run_platform(self, platform: str, task: str | None = None, max_turns: int = MAX_TURNS) -> str:
+        messages = [
+            {"role": "system", "content": build_prompt(self.args)},
+            {"role": "user", "content": task or (
+                f"Start the hunt now. Budget ₹{self.args.budget} all-in. Work ONLY on {platform}; "
+                f"the other platform is handled separately. Record each deal the moment its bill is verified.")}]
+        stale: list[tuple[int, dict]] = []  # (turn, tool-result message) so old results can be shrunk
+        for turn in range(max_turns):
             try:
-                resp = await self._generate(contents, platform)
+                msg = await self._generate(messages, platform)
             except Exception as e:  # keep the deals already found; report why we stopped
                 self.error = describe(e)
-                self.emit({"type": "error", "text": f"{platform}: stopped early, no Gemini model answered. {self.error}"})
+                self.emit({"type": "error", "text": f"{platform}: stopped early, no model answered. {self.error}"})
                 return f"Stopped early: {self.error}"
-            if not resp.candidates or not resp.candidates[0].content:
-                return "Model returned no content."
-            content = resp.candidates[0].content
-            contents.append(content)  # keep as-is so thought signatures round-trip
-            parts = content.parts or []
-            text = "".join(p.text for p in parts if p.text and not p.thought)
-            if text.strip():
-                self.emit({"type": "step", "text": f"{platform}: {text.strip()[:280]}"})
+            text = (msg.content or "").strip()
+            tool_calls = msg.tool_calls or []
+            assistant = {"role": "assistant", "content": text}
+            if tool_calls:
+                assistant["tool_calls"] = [{"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments or "{}"}}
+                                           for tc in tool_calls]
+            messages.append(assistant)
+            if text:
+                self.emit({"type": "step", "text": f"{platform}: {text[:280]}"})
                 if self.args.verbose:
-                    print(f"\n🤖 [{platform}] {text.strip()}\n")
-            calls = [p.function_call for p in parts if p.function_call]
-            if not calls:
+                    print(f"\n🤖 [{platform}] {text}\n")
+            if not tool_calls:
                 return text
-            for fc in calls:
-                if fc.name == "finish":
-                    return (fc.args or {}).get("summary", "")
+            calls = [SimpleNamespace(name=tc.function.name, args=_parse_args(tc.function.arguments)) for tc in tool_calls]
+            for call in calls:
+                if call.name == "finish":
+                    return str(call.args.get("summary", ""))
             outputs = await self._run_calls(calls)
-            results = [types.Part.from_function_response(name=fc.name, response={"result": out})
-                       for fc, out in zip(calls, outputs)]
-            stale += [(turn, r) for r in results]
-            contents.append(types.Content(role="user", parts=results))
-            for t, part in stale:  # shrink old tool results: smaller prompts mean faster turns
-                if turn - t >= KEEP_TURNS and not part.function_response.response.get("trimmed"):
-                    part.function_response.response = {"result": "[older result trimmed]", "trimmed": True}
-        return f"Stopped after {MAX_TURNS} turns (FOODHUNT_MAX_TURNS)."
+            for tc, out in zip(tool_calls, outputs):
+                result = {"role": "tool", "tool_call_id": tc.id, "content": out}
+                messages.append(result)
+                stale.append((turn, result))
+            for t, result in stale:  # shrink old tool results: smaller prompts mean faster turns
+                if turn - t >= KEEP_TURNS and result["content"] != TRIMMED:
+                    result["content"] = TRIMMED
+        return f"Stopped after {max_turns} turns."

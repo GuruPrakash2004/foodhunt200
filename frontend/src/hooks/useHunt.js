@@ -31,5 +31,7 @@ export function useHunt({ onDeal, onFinish, onNewDeal, onAlert, onEvent }) {
     } catch (e) { setError(e.message); }
   };
 
-  return { events, running, startedAt, error, status, run };
+  const stop = () => api.stopHunt().catch((e) => setError(e.message));   // the stream then ends with a "done" event
+
+  return { events, running, startedAt, error, status, run, stop };
 }

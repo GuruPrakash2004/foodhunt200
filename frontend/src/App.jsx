@@ -18,6 +18,7 @@ import Hero from "./components/hero/Hero.jsx";
 import LiveLog from "./components/hunt/LiveLog.jsx";
 import TopBar from "./components/layout/TopBar.jsx";
 import { useDeals } from "./hooks/useDeals.js";
+import { useAddresses } from "./hooks/useAddresses.js";
 import { useHunt } from "./hooks/useHunt.js";
 import { useWatches } from "./hooks/useWatches.js";
 import { DEFAULT_FILTERS, DEFAULT_PARAMS, FALLBACK_PLATFORMS } from "./lib/format.js";
@@ -41,7 +42,7 @@ export default function App() {
     else if (e.type === "alert") push({ kind: "alert", title: `Alert: ${e.watch}`, text: e.text, ms: 9000 });
     else if (e.type === "error") push({ kind: "error", title: "Hunt problem", text: e.text, ms: 10000 });
     else if (e.type === "status" && /Switched to/.test(e.text || "")) push({ kind: "info", title: "Switched model", text: e.text.replace(/\(.*?\)\.? /, ""), ms: 7000 });
-    else if (e.type === "done") push({ kind: e.status === "error" ? "error" : "info", title: e.status === "error" ? "Hunt failed" : "Hunt finished", text: (e.summary || "").slice(0, 140) });
+    else if (e.type === "done") push({ kind: e.status === "error" ? "error" : "info", title: e.status === "error" ? "Hunt failed" : e.status === "stopped" ? "Hunt stopped" : "Hunt finished", text: (e.summary || "").slice(0, 140) });
   };
   const [alarmOpen, setAlarmOpen] = useState(false);
   const [ringing, setRinging] = useState(null);
@@ -53,6 +54,7 @@ export default function App() {
   };
   const alarmClock = useAlarms(ringAlarm);
   const hunt = useHunt({ onEvent, onDeal: refreshAll, onFinish: refreshAll, onNewDeal: (d) => ding(d.final_payable), onAlert: () => ding(null) });
+  const addressBook = useAddresses(hunt.running);
   const { watches, add, remove } = useWatches();
   const { profile, save, logout } = useProfile();
   const [path, go] = usePath();
@@ -67,8 +69,11 @@ export default function App() {
   const signOut = async () => { await logout(); go("/login"); };
 
   const labels = hunt.status?.labels || FALLBACK_PLATFORMS;
-  const cheapest = useMemo(
-    () => all.deals.reduce((best, d) => (!best || d.final_payable < best.final_payable ? d : best), null), [all.deals]);
+  const cheapest = useMemo(() => {   // the cheapest bill of the latest hunt, so a new hunt's result shows up even if an older deal was cheaper
+    const latest = Math.max(0, ...all.deals.map((d) => d.hunt_id || 0));
+    const pool = all.deals.filter((d) => (d.hunt_id || 0) === latest);
+    return pool.reduce((best, d) => (!best || d.final_payable < best.final_payable ? d : best), null);
+  }, [all.deals]);
 
   if (profile === undefined) return <div className="boot" aria-busy="true" />;
   if (profile === null) return <LoginPage onSubmit={login} />;
@@ -80,8 +85,8 @@ export default function App() {
       <TopBar status={hunt.status} profile={profile} onSaveProfile={save} onLogout={signOut} />
       <main>
         <Hero params={params} setParams={setParams} running={hunt.running} startedAt={hunt.startedAt} found={hunt.events.filter((e) => e.type === "deal").length}
-          error={hunt.error || dealsError} onRun={() => hunt.run(params)} cheapest={cheapest} labels={labels}
-          mobile={formatMobile(profile.mobile)} needsLogin={needsLogin} chime={chime} setChime={setChime} />
+          error={hunt.error || dealsError} onRun={() => hunt.run(params)} onStop={hunt.stop} cheapest={cheapest} labels={labels}
+          mobile={formatMobile(profile.mobile)} needsLogin={needsLogin} chime={chime} setChime={setChime} addressBook={addressBook} />
         <DealOfHour deals={all.deals}
           alarms={alarmClock.alarms} snooze={alarmClock.snooze} onOpenAlarms={() => setAlarmOpen(true)} />
         <Ticker deals={all.deals} />

@@ -1,7 +1,7 @@
 # FoodHunt200
 
 Finds Zomato and Swiggy meals that cost **₹200 or less all-in** (item + delivery + platform fee + tax, after offers).
-An AI agent (Google Gemini) works through the platforms' official MCP servers. Every bill it reports is re-checked in code.
+An AI agent (a free NVIDIA-hosted model, with automatic fallback to the next free model) works through the platforms' official MCP servers. Every bill it reports is re-checked in code.
 **It never places an order or a payment.** You order in the app.
 
 ```
@@ -14,7 +14,7 @@ backend/    FastAPI API + agent + SQLite        frontend/   React + Vite UI
 ```bash
 # 1. backend
 cd backend
-cp .env.example .env                 # then set GOOGLE_API_KEY (https://aistudio.google.com/apikey)
+cp .env.example .env                 # then set NVIDIA_API_KEY (https://build.nvidia.com, "Get API Key")
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 
@@ -56,7 +56,7 @@ cd backend && .venv/bin/python -m pytest -q
 
 | Symptom | Fix |
 | --- | --- |
-| Model errors or slow replies | Handled automatically: a failing or slow model is skipped and the next working one is used. Tune with `FOODHUNT_MODEL`, `FOODHUNT_FALLBACK_MODELS`, `FOODHUNT_MODEL_TIMEOUT`, `FOODHUNT_THINKING` |
+| Model errors or slow replies | Handled automatically: a failing or slow model is skipped and the next working one is used. Tune with `FOODHUNT_MODEL`, `FOODHUNT_FALLBACK_MODELS`, `FOODHUNT_MODEL_TIMEOUT` |
 | `could not connect ... 401/invalid_client` | Swiggy: client not approved or wrong id. Zomato: try again or use the Claude app connector |
 | Browser login never returns | Port 8765/8766 busy, or the redirect URI isn't registered |
 | `Bill doesn't add up` rejections | Run with `-v`, read the cart tool output, adjust `app/prompts/system_prompt.md` |
