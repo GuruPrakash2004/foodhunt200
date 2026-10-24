@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getHunts, getReplay } from "../../api/index.js";
 import { rupees } from "../../lib/format.js";
 
+const KIND = { deal: "font-semibold text-ink", error: "text-bad", alert: "font-semibold text-pink" };
 const text = (e) => (e.type === "deal" ? `✓ ${rupees(e.deal.final_payable)} · ${e.deal.restaurant} — ${e.deal.items}`
   : e.type === "done" ? `Finished (${e.status}). ${e.summary || ""}` : e.type === "alert" ? `Alert: ${e.text}` : e.text);
 
@@ -43,21 +44,21 @@ export default function ReplayPanel({ refreshKey }) {
   const play = () => { if (step >= events.length) setStep(0); setPlaying(!playing); };
 
   return (
-    <div className="replay">
-      <div className="replay-bar">
-        <label>Hunt
+    <div className="grid gap-3.5">
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex-[1_1_280px]">Hunt
           <select value={huntId} onChange={(e) => setHuntId(e.target.value)}>
             {hunts.map((h) => <option key={h.id} value={h.id}>#{h.id} · {h.started_at?.replace("T", " ")} · {h.deal_count} deal{h.deal_count === 1 ? "" : "s"}</option>)}
           </select>
         </label>
-        <button className="solid-button" onClick={play} disabled={!events.length}>{playing ? "Pause" : step >= events.length ? "Replay" : "Play"}</button>
+        <button className="btn-solid" onClick={play} disabled={!events.length}>{playing ? "Pause" : step >= events.length ? "Replay" : "Play"}</button>
       </div>
       {problem ? <p className="muted">{problem}</p> : (
         <>
           <input type="range" min="0" max={events.length} value={step} onChange={(e) => { setPlaying(false); setStep(Number(e.target.value)); }}
-            aria-label="Scrub through the hunt" className="scrub" />
+            aria-label="Scrub through the hunt" />
           <p className="muted">Step {step} of {events.length} · {seconds.toFixed(1)}s · {dealsSoFar} deal{dealsSoFar === 1 ? "" : "s"} found so far</p>
-          <div className="log replay-log">{shown.slice(-14).map((e, i) => <p key={`${step}-${i}`} className={`log-${e.type}`}>{text(e)}</p>)}</div>
+          <div className="grid max-h-[320px] gap-[3px] overflow-auto rounded-lg bg-surface p-4 text-sm">{shown.slice(-14).map((e, i) => <p key={`${step}-${i}`} className={`animate-log text-muted ${KIND[e.type] || ""}`}>{text(e)}</p>)}</div>
         </>
       )}
     </div>

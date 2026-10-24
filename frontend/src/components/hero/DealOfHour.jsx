@@ -14,17 +14,17 @@ export default function DealOfHour({ deals, alarms, snooze, onOpenAlarms }) {
     .reduce((b, d) => (!b || d.final_payable < b.final_payable ? d : b), null);
   const next = nextAlarm(alarms, snooze, now);
   return (
-    <div className="statusline">
+    <div className="mt-6 flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2 rounded-lg border-l-[6px] border-brand bg-surface-2 px-[22px] py-4 text-[15px]">
       <p>
         {best
-          ? <>Cheapest in the last hour: <strong className="pink">{rupees(best.final_payable)}</strong> {best.items} at {best.restaurant}.</>
+          ? <>Cheapest in the last hour: <strong className="font-display font-semibold tracking-[-.02em] text-pink">{rupees(best.final_payable)}</strong> {best.items} at {best.restaurant}.</>
           : <span className="muted">Nothing found in the last hour.</span>}
       </p>
-      <p className="statusline-alarm">
+      <p className="flex items-baseline gap-3.5">
         {next
-          ? <>{next.snoozed ? "Snoozed. " : ""}{next.alarm.label} alarm in <strong className="hour-clock tabular">{clock(next.at - now)}</strong></>
+          ? <>{next.snoozed ? "Snoozed. " : ""}{next.alarm.label} alarm in <strong className="font-display text-[clamp(22px,3vw,32px)] font-bold leading-none tracking-[-.03em] tabular-nums">{clock(next.at - now)}</strong></>
           : <span className="muted">No meal alarm set</span>}
-        <button className="text-button" onClick={onOpenAlarms}>{next ? "Change" : "Set one"}</button>
+        <button className="btn-text" onClick={onOpenAlarms}>{next ? "Change" : "Set one"}</button>
       </p>
     </div>
   );

@@ -86,22 +86,24 @@ export default function Modal({ open, onClose, title, subtitle, variant = "cente
 
   if (!show) return null;
   return createPortal(
-    <div className={`scrim ${phase === "out" ? "out" : ""}`} onPointerDown={(e) => { if (e.target === e.currentTarget) closeRef.current(); }}>
-      <section ref={panel} className={`modal ${variant} genie genie-${phase}`} data-side={genie.side}
+    <div className={`fixed inset-0 z-[60] flex bg-black/65 will-change-[opacity] ${phase === "out" ? "scrim-out" : "animate-fade"}`} onPointerDown={(e) => { if (e.target === e.currentTarget) closeRef.current(); }}>
+      <section ref={panel} data-lenis-prevent className={`flex max-h-full min-h-0 flex-col bg-surface genie genie-${phase} ${variant === "drawer"
+          ? "ml-auto h-full w-[min(500px,100vw)] border-l border-line"
+          : "m-auto max-h-[calc(100vh-32px)] w-[min(440px,calc(100vw-32px))] rounded-lg border border-line"}`} data-side={genie.side}
         style={{ "--ox": `${genie.ox}px`, "--oy": `${genie.oy}px` }}
         onAnimationEnd={(e) => { if (phase === "out" && e.animationName === "genie-out" && e.target === e.currentTarget) setClosing(false); }}
         role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <header className="modal-head">
+        <header className="flex items-start justify-between gap-4 px-6 pb-2 pt-5">
           <div>
-            <h2 id={titleId} className="modal-title">{title}</h2>
-            {subtitle && <p className="muted">{subtitle}</p>}
+            <h2 id={titleId} className="text-xl font-bold leading-tight tracking-[-.01em]">{title}</h2>
+            {subtitle && <p className="muted mt-1.5">{subtitle}</p>}
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="Close">
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
           </button>
         </header>
-        <div className="modal-body">{children}</div>
-        {footer && <footer className="modal-foot">{footer}</footer>}
+        <div className="flex-1 overflow-y-auto px-6 pb-[22px] pt-3.5">{children}</div>
+        {footer && <footer className="flex items-center justify-between gap-4 border-t border-line px-6 py-3.5 [&_.muted]:mr-auto">{footer}</footer>}
       </section>
     </div>,
     document.body,

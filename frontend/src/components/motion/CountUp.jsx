@@ -1,6 +1,6 @@
-import { useCountUp } from "../../hooks/useCountUp.js";
+import Odometer from "./text/Odometer.tsx";
 
-export default function CountUp({ value, prefix = "₹", ms = 700 }) {
-  const shown = useCountUp(value, ms);
-  return value == null ? "—" : <>{prefix}{Math.round(shown)}</>;
+/** A rupee figure whose digits roll to the value. `ms` is kept so call sites don't change; the roll speed is in CSS. */
+export default function CountUp({ value, prefix = "₹" }) {
+  return value == null ? "—" : <Odometer text={`${prefix}${Math.round(value)}`} />;
 }

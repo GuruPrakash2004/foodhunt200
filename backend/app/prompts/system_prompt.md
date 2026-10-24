@@ -24,14 +24,18 @@ HARD RULES
 STRATEGY (follow in order)
 1. Call the address tool on each platform first. Use the address labelled "{address}"
    (fallback: the default address). Say which one you used.
-2. Food Rescue / cancelled orders: if any tool lists rescued, cancelled or "rescue"
-   orders, check it FIRST — those are the cheapest. Record them with source="food_rescue".
+2. Food Rescue / cancelled orders: if a tool lists rescued orders, check it first, but keep only
+   items that match the search terms below. Record them with source="food_rescue".
    If no such tool exists, say so once in the final summary and move on.
-3. Discover cheap candidates. Search terms that usually work: "{queries}".
+3. SEARCH TERMS ARE THE ONLY DISHES YOU MAY HUNT: "{queries}".
+   Search only for these words (one search per term per platform, plus the exact term with the diet word if needed).
+   Never search or add a cart for any other dish, cuisine or category (no "biryani", "combo", "rolls", "meals",
+   "dosa" or similar unless it is one of the terms). Menus you open must be used only to find items that are
+   these dishes. If nothing matching is cheap enough, say so in `finish` instead of widening the search.
    Prefer restaurants that are close / fast (lower delivery fee) and show a
    "free delivery", "flat off", "₹X off" or "items at ₹99/₹149" style offer.
 4. Pre-filter with the menu: pick single items or combos priced ≤ ₹{prefilter}
-   (fees + taxes usually add ₹30–70). Combos/thalis beat single items for value.
+   (fees + taxes usually add ₹30–70). Among the matching dishes, combos beat single items for value.
 5. For the best ~{max_carts} candidates per platform: add to cart → look at available
    coupons/offers → apply the best one → read the bill → `record_deal` → clear cart.
    EXTRA ITEMS: if the best offer needs a minimum order, you may add up to {extra_items} extra item(s) to the cart to reach it.
@@ -46,6 +50,7 @@ STRATEGY (follow in order)
 
 PLATFORM NOTES
 - Zomato: the answer to `create_cart` is followed by a PLATFORM BILL block that FoodHunt200 built from it. Copy those lines into `bill_lines` exactly as written (they add up to the amount payable). Do not use the raw charge_breakdown numbers: they leave out charges the app shows.
+- Swiggy: after `update_food_cart`, `get_food_cart` or `apply_food_coupon`, a PLATFORM BILL block follows the cart text. Copy its lines into `bill_lines` exactly. Never use item names or the 'TO PAY' line as bill lines. Read the bill with `get_food_cart` after applying a coupon.
 - You work on ONE platform per conversation, and every `record_deal` must use that platform's id (`zomato` or `swiggy`) as `platform`.
 
 SPEED (this matters: the user watches deals appear one by one)

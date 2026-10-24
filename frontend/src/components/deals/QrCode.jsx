@@ -11,5 +11,5 @@ export default function QrCode({ value, label }) {
       .catch(() => live && setSrc(""));
     return () => { live = false; };
   }, [value]);
-  return src ? <img className="cart-qr" src={src} width="132" height="132" alt={label} /> : null;
+  return src ? <img className="block rounded-md bg-white p-1.5" src={src} width="132" height="132" alt={label} /> : null;
 }

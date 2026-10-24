@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { rupees } from "../../lib/format.js";
+import { LineReveal } from "../motion/text/SplitWords.tsx";
+import Reveal from "../motion/Reveal.jsx";
 
 const describe = (e) => {
   switch (e.type) {
@@ -10,17 +12,19 @@ const describe = (e) => {
   }
 };
 
+const KIND = { deal: "font-semibold text-ink", error: "text-bad", alert: "font-semibold text-pink" };
+
 export default function LiveLog({ events, running }) {
   const end = useRef(null);
   useEffect(() => { end.current?.scrollIntoView({ block: "nearest" }); }, [events.length]);
   if (!events.length && !running) return null;
   return (
-    <section className="panel live" aria-labelledby="live-title">
-      <h2 id="live-title" className="panel-title">What the hunt is doing</h2>
-      <div className="log" aria-live="polite">
-        {events.map((e, i) => <p key={i} className={`log-${e.type}`}>{describe(e)}</p>)}
+    <Reveal as="section" from="left" className="live-scan relative mt-[18px] overflow-hidden rounded-lg border border-line bg-surface px-5 py-4" aria-labelledby="live-title">
+      <h2 id="live-title" className="mb-2.5 text-sm font-semibold"><LineReveal text="What the hunt is doing" /></h2>
+      <div className="grid max-h-[220px] gap-[3px] overflow-auto text-sm" aria-live="polite">
+        {events.map((e, i) => <p key={i} className={`animate-log text-muted motion-reduce:animate-none ${KIND[e.type] || ""}`}>{describe(e)}</p>)}
         <div ref={end} />
       </div>
-    </section>
+    </Reveal>
   );
 }

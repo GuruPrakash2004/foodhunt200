@@ -7,12 +7,12 @@ export default function Sparkline({ points }) {
   const y = (v) => h - pad - ((v - lo) * (h - 2 * pad)) / span;
   const path = points.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.final_payable)}`).join(" ");
   return (
-    <figure className="spark">
+    <figure className="mb-2">
       <svg width={w} height={h} role="img" aria-label={`Price history, low ₹${lo}, high ₹${hi}`}>
-        <path d={path} fill="none" stroke="var(--pink)" strokeWidth="2" />
+        <path className="spark-line" pathLength="1" d={path} fill="none" stroke="var(--pink)" strokeWidth="2" />
         {points.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.final_payable)} r="3" fill="var(--pink)" />)}
       </svg>
-      <figcaption className="muted">Low ₹{lo} · High ₹{hi} · {points.length} sightings</figcaption>
+      <figcaption className="muted mt-1">Low ₹{lo} · High ₹{hi} · {points.length} sightings</figcaption>
     </figure>
   );
 }

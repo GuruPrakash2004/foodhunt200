@@ -17,7 +17,7 @@ from app.config import BLOCKED_TOOLS, KEEP_TURNS, MAX_TURNS, PLATFORMS, PROMPT_F
 from app.services.errors import describe
 from app.services.models import router
 from app.services.oauth import make_oauth
-from app.services import bill, zomato_bill
+from app.services import bill, swiggy_bill, zomato_bill
 from app.services.pricing import Deal, validate
 
 LOCAL_TOOLS = [
@@ -218,7 +218,8 @@ class Hunt:
             res = await self.sessions[platform].call_tool(real, args)
             full = full_result_text(res)
             failed = getattr(res, "isError", False)
-            extra = "" if failed or platform != "zomato" else zomato_bill.summary(full)   # Zomato's itemised charges miss some the app shows
+            builder = {"zomato": zomato_bill, "swiggy": swiggy_bill}.get(platform)   # Zomato's itemised charges miss some the app shows; Swiggy's are plain text
+            extra = "" if failed or not builder or not re.search(r"cart", real, re.I) else builder.summary(full)
             self.platform_output.setdefault(platform, deque(maxlen=24)).append(extra + full)   # kept whole, to check bills against
             if not failed:
                 self._track_cart(platform, real, args)

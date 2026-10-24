@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "pinterest": {
+      "type": "http",
+      "url": "https://api.pinterest.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${PINTEREST_ACCESS_TOKEN}"
+      }
+    }
+  }
+}

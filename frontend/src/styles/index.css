@@ -1,11 +1,110 @@
-@import "./tokens.css";
-@import "./base.css";
-@import "./layout.css";
-@import "./hero.css";
-@import "./deals.css";
-@import "./panels.css";
-@import "./brand.css";
-@import "./motion.css";
-@import "./insights.css";
-@import "./modal.css";
+@import "tailwindcss";
 @import "./effects.css";
+
+/* Palette: ink #0A0A0A, cerulean #007BA7, pink #FF2D95. Pink is for the price and the one main action; blue is for selection and links. */
+@theme {
+  --color-ground: #0a0a0a;
+  --color-surface: #111214;
+  --color-surface-2: #17191c;
+  --color-surface-3: #202327;
+  --color-line: #26292e;
+  --color-line-hi: #3a3e45;
+  --color-ink: #f2f2ef;
+  --color-muted: #9a9ca1;
+  --color-brand: #007ba7;
+  --color-brand-bright: #4cb8e0;   /* the primary, lightened so small text and links stay readable on the dark ground */
+  --color-pink: #ff2d95;
+  --color-good: #5fd48a;
+  --color-bad: #ff7a7a;
+  --color-zomato: #e23744;
+  --color-swiggy: #fc8019;
+
+  --font-display: "Unbounded", "Manrope Variable", system-ui, sans-serif;   /* wordmark and big numbers only */
+  --font-sans: "Manrope Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --ease-soft: cubic-bezier(.2, .7, .2, 1);
+
+  --animate-rise: rise .6s var(--ease-soft) both;
+  --animate-pop: pop .15s var(--ease-soft) both;
+  --animate-fade: fade .2s var(--ease-soft) both;
+  --animate-toast: toast-in .3s var(--ease-soft) both;
+  --animate-row: row-in .4s var(--ease-soft) both;
+  --animate-log: log-in .3s var(--ease-soft) both;
+  --animate-line: line-in .4s var(--ease-soft) both;
+  --animate-sweep: sweep 1.4s var(--ease-soft) infinite;
+  --animate-beat: beat 2.8s ease-in-out infinite;
+  --animate-float-up: float-up 14s linear infinite;
+  --animate-spin-border: spin-border 6s linear infinite;
+  --animate-shimmer: shimmer 2.8s ease-in-out infinite;
+  --animate-ring-shake: ring-shake 1s ease-in-out infinite;
+  --animate-bar-in: bar-in .8s var(--ease-soft) both;
+
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes toast-in { from { transform: translateX(40px); opacity: 0; } }
+  @keyframes row-in { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes log-in { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes line-in { from { opacity: 0; transform: translateX(-6px); } }
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  @keyframes beat { 50% { opacity: .45; } }
+  @keyframes float-up { from { transform: translateY(0) rotate(var(--r, 0deg)); opacity: 0; } 8%, 85% { opacity: 1; } to { transform: translateY(-115vh) rotate(var(--r, 0deg)); opacity: 0; } }
+  @keyframes spin-border { to { --angle: 360deg; } }
+  @keyframes shimmer { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+  @keyframes ring-shake { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 75% { transform: rotate(2deg); } }
+  @keyframes bar-in { from { opacity: 0; transform: translateY(-100%); } }
+}
+
+:root {
+  --gutter: clamp(16px, 4vw, 40px);
+  --section-gap: clamp(56px, 7vw, 96px);
+  --ease: var(--ease-soft);
+  /* short names kept for the few places that style through CSS variables (SVG strokes, scroll scenes) */
+  --pink: var(--color-pink);
+  --blue: var(--color-brand);
+  --blue-bright: var(--color-brand-bright);
+  --muted: var(--color-muted);
+  --text: var(--color-ink);
+  --ink-ground: var(--color-ground);
+  --surface: var(--color-surface);
+  --surface-2: var(--color-surface-2);
+  --surface-3: var(--color-surface-3);
+  --line: var(--color-line);
+  --good: var(--color-good);
+  --bad: var(--color-bad);
+}
+
+@layer base {
+  html { @apply scroll-smooth; color-scheme: dark; }
+  html, body { @apply overflow-x-clip; }   /* a safety net: nothing decorative may ever cause a sideways scroll */
+  body { @apply bg-ground font-sans text-base leading-normal text-ink antialiased; }
+  a { color: inherit; }
+  button { @apply cursor-pointer; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--color-brand-bright); outline-offset: 2px; }
+  ::selection { @apply bg-pink text-ground; }
+
+  label { @apply grid gap-1.5 text-[13px] text-muted; }
+  input, select, textarea {
+    @apply w-full rounded-md border border-line bg-surface-2 px-3 py-[9px] text-ink transition-colors duration-150 placeholder:text-[#6b6e75] hover:border-line-hi focus:border-brand-bright focus:outline-none;
+  }
+  input[type="range"] { @apply border-0 bg-transparent p-0 accent-pink; }
+  input[type="time"] { color-scheme: dark; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+}
+
+/* The few controls that repeat across the app. Everything else is utilities on the element. */
+@layer components {
+  .btn-solid { @apply rounded-md border-0 bg-pink px-[18px] py-2.5 font-bold text-ground transition duration-150 hover:enabled:brightness-110 active:enabled:translate-y-px disabled:cursor-progress disabled:opacity-55; }
+  .btn-text { @apply border-0 border-b border-transparent bg-transparent py-0.5 text-sm text-brand-bright transition-colors duration-150 hover:enabled:border-current disabled:opacity-50; }
+  .chip { @apply rounded-md border border-line bg-transparent px-3 py-1.5 text-sm text-ink transition duration-150 hover:bg-surface-2 hover:border-line-hi aria-pressed:border-brand aria-pressed:bg-brand aria-pressed:text-white; }
+  .icon-btn { @apply grid size-[34px] flex-none place-items-center rounded-md border-0 bg-transparent text-muted transition duration-150 hover:bg-surface-2 hover:text-ink; }
+  .page { @apply mx-auto max-w-[1320px] px-[var(--gutter)] min-[1700px]:max-w-[1560px] min-[2200px]:max-w-[1900px]; }
+  .muted { @apply text-sm text-muted; }
+  .error { @apply mt-3 text-sm text-bad; }
+  .empty { @apply rounded-lg border border-dashed border-line px-4 py-12 text-center text-muted; }
+}

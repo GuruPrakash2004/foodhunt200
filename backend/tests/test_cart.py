@@ -137,3 +137,27 @@ def test_same_dish_on_both_apps_keeps_the_cheaper(client):  # noqa: F811
     both = {d["platform"]: d for d in repo.list_deals() if d["restaurant"].startswith("Burger")}
     assert both["swiggy"]["rival"] == {"platform": "zomato", "final_payable": 180, "deal_key": both["zomato"]["deal_key"], "gap": 20}
     assert both["zomato"]["cheaper_here"] is False
+
+
+SWIGGY_CART = """Items (1):
+  - Chicken roll — ₹130 (ID: 204973309)
+
+Item total: ₹130
+Delivery: FREE
+Taxes & charges: ₹24.48
+TO PAY: ₹154
+
+Cart widget is displayed — do not repeat the cart items, prices, or totals in text.
+"""
+
+
+def test_swiggy_bill_lines_from_cart_text():
+    from app.services import bill, swiggy_bill
+    found, to_pay = swiggy_bill.lines(SWIGGY_CART)
+    assert to_pay == 154 and found == [{"label": "Item total", "amount": 130}, {"label": "Delivery", "amount": 0},
+                                       {"label": "Taxes & charges", "amount": 24.48}]
+    assert bill.verify(found, 154, [SWIGGY_CART]) == []
+    assert "Item total: 130" in swiggy_bill.summary(SWIGGY_CART)
+    withcoupon = SWIGGY_CART.replace("Delivery: FREE", "Coupon (SAVE50): ₹50\nDelivery: ₹20").replace("TO PAY: ₹154", "TO PAY: ₹124")
+    assert [l["amount"] for l in swiggy_bill.lines(withcoupon)[0]] == [130, -50, 20, 24.48]
+    assert swiggy_bill.summary("not a cart") == ""

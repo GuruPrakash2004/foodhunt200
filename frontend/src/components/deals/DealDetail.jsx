@@ -14,21 +14,21 @@ export default function DealDetail({ deal: d, profile, labels = {} }) {
   useEffect(() => { getHistory(d.deal_key).then(setHistory).catch(() => setHistory([])); }, [d.deal_key]);
   const bill = billRows(d);
   return (
-    <div className="detail-grid">
-      <table className="bill">
+    <div className="grid gap-7 min-[700px]:grid-cols-[minmax(230px,330px)_1fr]">
+      <table className="w-full text-sm">
         <tbody>
           {bill.rows.map((r, i) => (
-            <tr key={i}><td>{r.label}</td><td className={`num ${r.discount ? "good" : ""}`}>{r.discount ? `−${rupees(-r.amount)}` : rupees(r.amount)}</td></tr>
+            <tr key={i}><td className="py-1">{r.label}</td><td className={`py-1 text-right tabular-nums ${r.discount ? "text-good" : ""}`}>{r.discount ? `−${rupees(-r.amount)}` : rupees(r.amount)}</td></tr>
           ))}
-          <tr className="bill-total"><td>To pay</td><td className="num">{rupees(d.final_payable)}</td></tr>
+          <tr className="font-display text-[17px] font-bold tracking-[-.03em] text-pink"><td className="pt-2.5">To pay</td><td className="pt-2.5 text-right tabular-nums">{rupees(d.final_payable)}</td></tr>
         </tbody>
       </table>
       <div>
         <Spend deal={d} />
         <AddToCartButton deal={d} label={labels[d.platform]} />
-        <h3 className="panel-title">Price history</h3>
+        <h3 className="mb-2.5 text-sm font-semibold">Price history</h3>
         <Sparkline points={history} />
-        <button className="text-button" onClick={share}>Share as image</button>
+        <button className="btn-text" onClick={share}>Share as image</button>
         {shared && <span className="muted"> {shared === "downloaded" ? "Saved to your downloads." : shared === "failed" ? "Could not make the image." : ""}</span>}
         {bill.approximate && <p className="muted">Saved before bills were kept line by line, so this split is approximate.</p>}
         <p className="muted">Every line above is copied from {d.platform}'s own bill. {d.can_add_to_cart ? "Add it to your cart here, then pay in the app." : "Order it in the app."}</p>

@@ -1,9 +1,12 @@
+import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 // Dev: this server is the single URL. It serves the React app and proxies the API to FastAPI.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
   server: {
     // /login and every other page route falls back to index.html (Vite does this by default)
     host: "localhost",

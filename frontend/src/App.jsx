@@ -14,6 +14,13 @@ import { useProfile } from "./hooks/useProfile.js";
 import { formatMobile } from "./lib/phone.js";
 import AlertsPanel from "./components/alerts/AlertsPanel.jsx";
 import DealsSection from "./components/deals/DealsSection.jsx";
+import SmoothScroll from "./components/motion/SmoothScroll.tsx";
+import Backdrop from "./components/motion/Backdrop.tsx";
+import Cursor from "./components/motion/Cursor.tsx";
+import { LineReveal } from "./components/motion/text/SplitWords.tsx";
+import ScrollFX from "./components/motion/ScrollFX.jsx";
+import Reveal from "./components/motion/Reveal.jsx";
+import PriceDrop from "./components/hero/PriceDrop.tsx";
 import Hero from "./components/hero/Hero.jsx";
 import LiveLog from "./components/hunt/LiveLog.jsx";
 import TopBar from "./components/layout/TopBar.jsx";
@@ -82,14 +89,17 @@ export default function App() {
   const needsLogin = Object.values(hunt.status?.platforms || {}).some((ok) => !ok);
   return (
     <>
+      <SmoothScroll /><Backdrop /><Cursor />
+      <ScrollFX />
       <TopBar status={hunt.status} profile={profile} onSaveProfile={save} onLogout={signOut} />
-      <main>
+      <main className="page">
+        <PriceDrop budget={params.budget} />
         <Hero params={params} setParams={setParams} running={hunt.running} startedAt={hunt.startedAt} found={hunt.events.filter((e) => e.type === "deal").length}
           error={hunt.error || dealsError} onRun={() => hunt.run(params)} onStop={hunt.stop} cheapest={cheapest} labels={labels}
           mobile={formatMobile(profile.mobile)} needsLogin={needsLogin} chime={chime} setChime={setChime} addressBook={addressBook} />
-        <DealOfHour deals={all.deals}
-          alarms={alarmClock.alarms} snooze={alarmClock.snooze} onOpenAlarms={() => setAlarmOpen(true)} />
-        <Ticker deals={all.deals} />
+        <Reveal from="left"><DealOfHour deals={all.deals}
+          alarms={alarmClock.alarms} snooze={alarmClock.snooze} onOpenAlarms={() => setAlarmOpen(true)} /></Reveal>
+        <Reveal from="right" delay={120}><Ticker deals={all.deals} /></Reveal>
         <LiveLog events={hunt.events} running={hunt.running} />
         <DealsSection deals={deals} filters={filters} setFilters={setFilters}
           budget={params.budget} totalCount={all.deals.length} onClearFilters={() => setFilters(DEFAULT_FILTERS)}
@@ -102,7 +112,7 @@ export default function App() {
         onSnooze={(min) => { alarmClock.snoozeFor(ringing, min); setRinging(null); }}
         onHunt={() => { setRinging(null); hunt.run(params); }} />
       <Toasts toasts={toasts} onDismiss={dismiss} />
-      <footer className="footer"><span>FoodHunt200 finds the deal. You place the order.</span></footer>
+      <Reveal as="footer" className="page mt-[var(--section-gap)] border-t border-line pb-10 pt-7 text-sm text-muted"><span>FoodHunt200 finds the deal. You place the order.</span><div className="mt-6 overflow-hidden font-display text-[clamp(26px,8.4vw,140px)] font-extrabold leading-[.9] tracking-[-.05em] text-transparent [-webkit-text-stroke:1.5px_var(--glow)]" aria-hidden="true"><LineReveal text="FOODHUNT200" /></div></Reveal>
     </>
   );
 }

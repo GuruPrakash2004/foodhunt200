@@ -2,7 +2,9 @@ import { useState } from "react";
 import { DEFAULT_FILTERS } from "../../lib/format.js";
 import { EXPORT_URL } from "../../api/index.js";
 import CountUp from "../motion/CountUp.jsx";
+import FoodDrift from "../motion/FoodDrift.jsx";
 import Reveal from "../motion/Reveal.jsx";
+import SectionTitle from "../motion/SectionTitle.tsx";
 import DealsTable from "./DealsTable.jsx";
 import FilterBar from "./FilterBar.jsx";
 import SideBySide from "./SideBySide.jsx";
@@ -18,30 +20,31 @@ export default function DealsSection({ deals, filters, setFilters, budget, onFee
   const cheapest = deals.length ? Math.min(...deals.map((d) => d.final_payable)) : null;
   const avgSaving = deals.length ? deals.reduce((s, d) => s + d.savings, 0) / deals.length : 0;
   return (
-    <Reveal as="section" className="section" id="deals" aria-labelledby="deals-title">
-      <div className="section-head">
-        <h2 id="deals-title" className="section-title">Deals</h2>
-        <p className="stats-line">
+    <Reveal as="section" stagger className="relative mt-[var(--section-gap)]" id="deals" aria-labelledby="deals-title">
+      <FoodDrift photos={["f02", "f10"]} side="right" />
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-8 gap-y-5">
+        <SectionTitle id="deals-title" glow="var(--pink)">Deals</SectionTitle>
+        <p data-cascade className="mr-auto flex flex-wrap gap-x-[18px] gap-y-1.5 text-sm text-muted [&_b]:font-semibold [&_b]:text-ink [&_b]:tabular-nums">
           <span><b><CountUp value={deals.length} prefix="" ms={400} /></b> shown</span>
-          <span>cheapest <b className="pink"><CountUp value={cheapest} /></b></span>
+          <span>cheapest <b className="!font-display !text-[13px] !text-pink"><CountUp value={cheapest} /></b></span>
           <span>offers took <b><CountUp value={avgSaving} /></b> off on average</span>
         </p>
-        <div className="view-switch" role="group" aria-label="Deal layout">
-          <button className={`chip ${view === "sides" ? "on" : ""}`} aria-pressed={view === "sides"} onClick={() => pick("sides")}>Side by side</button>
-          <button className={`chip ${view === "table" ? "on" : ""}`} aria-pressed={view === "table"} onClick={() => pick("table")}>Table</button>
+        <div data-cascade className="inline-flex divide-x divide-line overflow-hidden rounded-md border border-line" role="group" aria-label="Deal layout">
+          <button className="chip rounded-none border-0" aria-pressed={view === "sides"} onClick={() => pick("sides")}>Side by side</button>
+          <button className="chip rounded-none border-0" aria-pressed={view === "table"} onClick={() => pick("table")}>Table</button>
         </div>
-        <a className="text-button" href={EXPORT_URL}>Download Excel history</a>
+        <a className="btn-text" href={EXPORT_URL}>Download Excel history</a>
       </div>
       <FilterBar filters={filters} setFilters={setFilters} budget={budget} labels={labels} />
       {filtered && hidden > 0 && (
-        <p className="filter-note" role="status">
+        <p className="mb-3.5 rounded-md bg-surface-2 px-3.5 py-2.5 text-sm" role="status">
           {deals.length === 0 ? `Your filters hide all ${totalCount} deal${totalCount === 1 ? "" : "s"} found so far.` : `${hidden} of ${totalCount} deals are hidden by your filters.`}{" "}
-          <button className="text-button" onClick={onClearFilters}>Clear filters</button>
+          <button className="btn-text" onClick={onClearFilters}>Clear filters</button>
         </p>
       )}
       {deals.length === 0 && hidden > 0 ? null : view === "sides"
         ? <SideBySide deals={deals} onFeedback={onFeedback} connected={platforms} labels={labels} profile={profile} budget={budget} />
-        : <DealsTable deals={deals} onFeedback={onFeedback} profile={profile} labels={labels} />}
+        : <DealsTable deals={deals} onFeedback={onFeedback} profile={profile} labels={labels} budget={budget} />}
     </Reveal>
   );
 }

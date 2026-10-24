@@ -19,20 +19,20 @@ export default function TermsInput({ value, onChange }) {
   };
   const unused = SUGGESTIONS.filter((s) => !terms.some((t) => t.toLowerCase() === s));
   return (
-    <div className="terms">
-      <div className="terms-box">
+    <div className="grid gap-2.5">
+      <div className="flex min-h-12 flex-wrap items-center gap-1.5 rounded-md border border-line bg-surface-2 p-2 focus-within:border-brand-bright">
         {terms.map((t) => (
-          <span key={t} className="term">
+          <span key={t} className="inline-flex animate-pop items-center gap-1 rounded bg-surface-3 py-[3px] pl-2.5 pr-1 text-sm">
             {t}
-            <button type="button" onClick={() => set(terms.filter((x) => x !== t))} aria-label={`Remove ${t}`}>×</button>
+            <button type="button" className="size-[22px] rounded-full border-0 bg-transparent p-0 text-[17px] leading-none text-inherit hover:bg-ground" onClick={() => set(terms.filter((x) => x !== t))} aria-label={`Remove ${t}`}>×</button>
           </span>
         ))}
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} onBlur={() => draft.trim() && add(draft)}
+        <input className="w-auto min-w-[140px] flex-1 border-0 bg-transparent p-1 outline-none" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} onBlur={() => draft.trim() && add(draft)}
           placeholder={terms.length ? "Add another…" : "Type a dish and press Enter"} aria-label="Add a search term" />
       </div>
       {unused.length > 0 && (
-        <div className="suggest" aria-label="Suggestions">
-          {unused.slice(0, 8).map((s) => <button type="button" key={s} className="chip" onClick={() => add(s)}>+ {s}</button>)}
+        <div className="flex flex-wrap gap-1.5" aria-label="Suggestions">
+          {unused.slice(0, 8).map((s) => <button type="button" key={s} className="chip !px-3 !py-1 !text-[13px]" onClick={() => add(s)}>+ {s}</button>)}
         </div>
       )}
     </div>
