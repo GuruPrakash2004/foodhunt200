@@ -14,8 +14,9 @@ const TAGS = [
 const GLOWS = ["#ff2d95", "#007ba7", "#6a4cff", "#ff8a1f"];
 const RISE = "animate-rise [animation-delay:calc(var(--i,0)*90ms+400ms)] motion-reduce:animate-none";
 
-export default function LoginPage({ onSubmit }) {
+export default function LoginPage({ onSubmit, hosted = false }) {
   const [name, setName] = useState("");
+  const [code, setCode] = useState("");
   const [mobile, setMobile] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,8 +35,9 @@ export default function LoginPage({ onSubmit }) {
     e.preventDefault();
     if (!name.trim()) return setError("Enter your name.");
     if (!isValidMobile(mobile)) return setError("Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9.");
+    if (hosted && !code) return setError("Enter your access code.");
     setError(""); setBusy(true);
-    const problem = await onSubmit(name, mobile);
+    const problem = await onSubmit(name, mobile, code);
     setBusy(false);
     if (problem) setError(problem);
   };
@@ -72,12 +74,17 @@ export default function LoginPage({ onSubmit }) {
           <label className={RISE} style={{ "--i": 2 }}>Mobile number
             <PhoneField value={mobile} onChange={(e) => setMobile(e.target.value)} autoComplete="tel-national" placeholder="98765 43210" aria-label="Mobile number, 10 digits" />
           </label>
+          {hosted && (
+            <label className={RISE} style={{ "--i": 3 }}>Access code
+              <input type="password" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="current-password" maxLength={200} placeholder="Your private code" />
+            </label>
+          )}
           {error && <p className="error !mt-0" role="alert">{error}</p>}
-          <button className={`btn-solid group relative overflow-hidden px-6 py-[13px] text-base ${RISE}`} style={{ "--i": 3 }} disabled={busy}>
+          <button className={`btn-solid group relative overflow-hidden px-6 py-[13px] text-base ${RISE}`} style={{ "--i": hosted ? 4 : 3 }} disabled={busy}>
             <span className="absolute inset-y-0 left-0 w-1/3 -skew-x-[20deg] animate-shimmer bg-white/40 motion-reduce:hidden" aria-hidden="true" />
             <span className="relative">{busy ? "Saving…" : "Start hunting"}</span>
           </button>
-          <p className={`muted ${RISE}`} style={{ "--i": 4 }}>This number is not verified by an OTP. Zomato and Swiggy ask for their own OTP when you connect them.</p>
+          <p className={`muted ${RISE}`} style={{ "--i": hosted ? 5 : 4 }}>{hosted ? "Private app: only allowed numbers with the right access code get in. Zomato and Swiggy ask for their own OTP when you connect them." : "This number is not verified by an OTP. Zomato and Swiggy ask for their own OTP when you connect them."}</p>
         </form>
       </main>
     </div>

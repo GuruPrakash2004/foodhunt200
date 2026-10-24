@@ -19,6 +19,9 @@ TEXT_KEYS = ("addressLine", "location_name", "address", "full_address", "display
 
 
 def has_token(name: str) -> bool:
+    if config.HOSTED:
+        from app.services.oauth import DbTokenStorage
+        return bool(DbTokenStorage(name)._load().get("tokens"))
     try:
         return bool(json.loads((config.TOKEN_DIR / f"{name}.json").read_text()).get("tokens"))
     except (FileNotFoundError, json.JSONDecodeError):
@@ -31,7 +34,7 @@ class LoginNeeded(Exception):
 
 @asynccontextmanager
 async def platform_session(name: str):
-    """Yield (session, tool names) for one platform. Never opens a login tab: the user logs in by running a hunt."""
+    """Yield (session, tool names) for one platform. Never opens a login tab: the user logs in by running a hunt (hosted: the Connect button)."""
     if not has_token(name):
         raise LoginNeeded(f"Log in to {config.PLATFORM_LABELS.get(name, name)} first: run one hunt and finish the login in the browser tab.")
     cfg = config.PLATFORMS[name]

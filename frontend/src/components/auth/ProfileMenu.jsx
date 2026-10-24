@@ -6,7 +6,7 @@ import PhoneField from "../ui/PhoneField.jsx";
 const AVATAR = "grid place-items-center rounded-full bg-brand font-bold text-white";
 const MENU_ROW = "flex w-full items-center justify-between rounded-lg border-0 bg-transparent px-3.5 py-[13px] text-left transition-all duration-150 hover:bg-surface-3 hover:pl-[18px]";
 
-export default function ProfileMenu({ profile, onSave, onLogout, className = "" }) {
+export default function ProfileMenu({ profile, onSave, onLogout, className = "", canChangeNumber = true }) {
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState(null);       // "number" | "logout" | null
   const [mobile, setMobile] = useState("");
@@ -43,9 +43,11 @@ export default function ProfileMenu({ profile, onSave, onLogout, className = "" 
             <span className={`${AVATAR} size-[52px] text-[22px]`} aria-hidden="true">{initialOf(profile.name)}</span>
             <div className="grid min-w-0 gap-0.5"><strong>{profile.name}</strong><span className="muted">{formatMobile(profile.mobile)}</span></div>
           </div>
-          <button role="menuitem" className={MENU_ROW} onClick={() => setDialog("number")}>
-            <span>Change number</span><span aria-hidden="true">›</span>
-          </button>
+          {canChangeNumber && (
+            <button role="menuitem" className={MENU_ROW} onClick={() => setDialog("number")}>
+              <span>Change number</span><span aria-hidden="true">›</span>
+            </button>
+          )}
           <button role="menuitem" className={`${MENU_ROW} text-bad`} onClick={() => setDialog("logout")}>
             <span>Log out</span><span aria-hidden="true">›</span>
           </button>

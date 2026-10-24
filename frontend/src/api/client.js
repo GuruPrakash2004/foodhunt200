@@ -7,6 +7,8 @@ async function parse(res) {
       // FastAPI sends validation problems as a list of {msg}; show them as plain sentences
       message = Array.isArray(detail) ? detail.map((d) => String(d.msg).replace(/^Value error, /, "")).join(" ") : detail || message;
     } catch { /* body was not JSON */ }
+    // the hosted API answers "Please sign in." once the session ends; the profile hook listens and shows the login page
+    if (res.status === 401 && message === "Please sign in.") window.dispatchEvent(new Event("fh-unauthorized"));
     throw new Error(message);
   }
   return res.json();

@@ -1,0 +1,14 @@
+# Keeps the SQLite database (deals, history, and the encrypted platform logins) in a free S3-compatible bucket
+# (Cloudflare R2, Backblaze B2, ...), so a free host that wipes its disk on every restart loses nothing.
+dbs:
+  - path: ${FOODHUNT_DB}
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET}
+        path: foodhunt/foodhunt.db
+        endpoint: ${LITESTREAM_ENDPOINT}
+        region: ${LITESTREAM_REGION}
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+        force-path-style: true
+        sync-interval: 10s

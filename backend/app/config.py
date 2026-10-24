@@ -19,6 +19,16 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 API_PREFIX = "/api/v1"
 CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
+# Hosted mode: the UI on Vercel, this API on a small server. Off unless FOODHUNT_HOSTED=1, so local use is unchanged.
+HOSTED = os.getenv("FOODHUNT_HOSTED") == "1"
+PUBLIC_URL = os.getenv("FOODHUNT_PUBLIC_URL", "").rstrip("/")   # the address people open (the Vercel URL); platform logins return here
+JWT_SECRET = os.getenv("FOODHUNT_JWT_SECRET", "")               # signs session cookies, 32+ random characters
+ACCESS_CODE = os.getenv("FOODHUNT_ACCESS_CODE", "")             # the private code that goes with an allowed mobile number
+ALLOWED_MOBILES = frozenset(re.sub(r"\D", "", m)[-10:] for m in os.getenv("FOODHUNT_ALLOWED_MOBILES", "").split(",") if m.strip())
+TOKEN_KEY = os.getenv("FOODHUNT_TOKEN_KEY", "")                 # Fernet key that encrypts platform login tokens stored in the database
+SESSION_COOKIE = "fh_session"
+SESSION_DAYS = 7
+
 
 def db_path() -> Path:
     """Resolved on each call so tests can point FOODHUNT_DB at a temp file."""

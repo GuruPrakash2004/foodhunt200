@@ -12,7 +12,8 @@ export function useHunt({ onDeal, onFinish, onNewDeal, onAlert, onEvent }) {
   const [startedAt, setStartedAt] = useState(0);
   const timer = useRef(null);
 
-  useEffect(() => { api.getStatus().then(setStatus).catch(() => {}); }, [running]);
+  const refreshStatus = () => api.getStatus().then(setStatus).catch(() => {});
+  useEffect(() => { refreshStatus(); }, [running]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async (params) => {
     unlockAudio();   // browsers only allow sound after a click
@@ -33,5 +34,5 @@ export function useHunt({ onDeal, onFinish, onNewDeal, onAlert, onEvent }) {
 
   const stop = () => api.stopHunt().catch((e) => setError(e.message));   // the stream then ends with a "done" event
 
-  return { events, running, startedAt, error, status, run, stop };
+  return { events, running, startedAt, error, status, refreshStatus, run, stop };
 }

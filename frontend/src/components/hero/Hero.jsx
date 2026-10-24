@@ -24,7 +24,7 @@ function Progress({ startedAt, found }) {
   );
 }
 
-export default function Hero({ params, setParams, running, startedAt, found, error, onRun, cheapest, labels, mobile, needsLogin, chime, setChime, addressBook, onStop }) {
+export default function Hero({ params, setParams, running, startedAt, found, error, onRun, cheapest, labels, mobile, needsLogin, hosted, chime, setChime, addressBook, onStop }) {
   const [options, setOptions] = useState(() => window.location.hash === "#options");   // /#options opens the drawer
   const ring = useRef(null);
   useMagnetic(ring);
@@ -69,7 +69,8 @@ export default function Hero({ params, setParams, running, startedAt, found, err
           <span className="text-sm text-muted">{where} · {diet}</span>
         </div>
         {running && <Progress startedAt={startedAt} found={found} />}
-        {needsLogin && mobile && <p className="muted mt-3.5 max-w-[48ch]">The first hunt opens a Zomato / Swiggy login tab. Use <strong className="font-semibold text-ink">{mobile}</strong> there.</p>}
+        {needsLogin && hosted && <p className="muted mt-3.5 max-w-[48ch]">Press <strong className="font-semibold text-ink">Connect</strong> in the top bar to log in to Zomato / Swiggy first. Use the number you have registered with each app.</p>}
+        {needsLogin && !hosted && mobile && <p className="muted mt-3.5 max-w-[48ch]">The first hunt opens a Zomato / Swiggy login tab. Use <strong className="font-semibold text-ink">{mobile}</strong> there.</p>}
         {error && <p className="error" role="alert">{error}</p>}
 
         <Modal open={options} onClose={() => setOptions(false)} variant="drawer" title="Hunt options"

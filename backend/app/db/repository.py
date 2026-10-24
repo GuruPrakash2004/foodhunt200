@@ -247,6 +247,19 @@ def clear_profile() -> None:
         con.execute("DELETE FROM profile WHERE id = 1")
 
 
+# --- secrets (encrypted platform login tokens, hosted mode) ----------------------
+
+def get_secret(name: str) -> bytes | None:
+    with connect() as con:
+        row = con.execute("SELECT blob FROM secrets WHERE name = ?", (name,)).fetchone()
+        return bytes(row["blob"]) if row else None
+
+
+def set_secret(name: str, blob: bytes) -> None:
+    with connect() as con:
+        con.execute("INSERT INTO secrets (name, blob) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET blob=excluded.blob", (name, blob))
+
+
 # --- insights --------------------------------------------------------------
 
 def heatmap() -> list[dict]:

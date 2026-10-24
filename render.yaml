@@ -1,0 +1,27 @@
+# Render blueprint: the API as a Docker web service on the free plan. Secrets are entered in the Render dashboard (sync: false), never committed.
+services:
+  - type: web
+    name: foodhunt200-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /api/v1/auth/config
+    envVars:
+      - { key: FOODHUNT_HOSTED, value: "1" }
+      - { key: FOODHUNT_DATA_DIR, value: /data }
+      - { key: FOODHUNT_DB, value: /data/foodhunt.db }
+      - { key: FOODHUNT_PUBLIC_URL, sync: false }          # https://<your-project>.vercel.app
+      - { key: FOODHUNT_JWT_SECRET, sync: false }          # 32+ random characters
+      - { key: FOODHUNT_ACCESS_CODE, sync: false }         # the private code you type at sign-in
+      - { key: FOODHUNT_ALLOWED_MOBILES, sync: false }     # comma-separated 10-digit numbers allowed in
+      - { key: FOODHUNT_TOKEN_KEY, sync: false }           # Fernet key that encrypts platform logins
+      - { key: NVIDIA_API_KEY, sync: false }
+      - { key: ZOMATO_CLIENT_ID, sync: false }
+      - { key: ZOMATO_CLIENT_SECRET, sync: false }
+      - { key: SWIGGY_CLIENT_ID, sync: false }
+      - { key: SWIGGY_CLIENT_SECRET, sync: false }
+      - { key: LITESTREAM_BUCKET, sync: false }
+      - { key: LITESTREAM_ENDPOINT, sync: false }          # e.g. https://<account>.r2.cloudflarestorage.com
+      - { key: LITESTREAM_REGION, value: auto }
+      - { key: LITESTREAM_ACCESS_KEY_ID, sync: false }
+      - { key: LITESTREAM_SECRET_ACCESS_KEY, sync: false }

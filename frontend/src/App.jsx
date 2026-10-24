@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Ticker from "./components/motion/Ticker.jsx";
+import Boot from "./components/ui/Boot.jsx";
 import Toasts from "./components/ui/Toasts.jsx";
 import { useToasts } from "./hooks/useToasts.js";
 import { useAlarms } from "./hooks/useAlarms.js";
@@ -30,7 +31,7 @@ import { useHunt } from "./hooks/useHunt.js";
 import { useWatches } from "./hooks/useWatches.js";
 import { DEFAULT_FILTERS, DEFAULT_PARAMS, FALLBACK_PLATFORMS } from "./lib/format.js";
 
-export default function App() {
+function Dashboard({ profile, hosted, save, signOut }) {
   const [params, setParams] = useState(DEFAULT_PARAMS);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const { deals, error: dealsError, refresh, saveFeedback } = useDeals(filters);
@@ -63,18 +64,6 @@ export default function App() {
   const hunt = useHunt({ onEvent, onDeal: refreshAll, onFinish: refreshAll, onNewDeal: (d) => ding(d.final_payable), onAlert: () => ding(null) });
   const addressBook = useAddresses(hunt.running);
   const { watches, add, remove } = useWatches();
-  const { profile, save, logout } = useProfile();
-  const [path, go] = usePath();
-  const onLoginPage = path === "/login";
-
-  // /login is the only page for logged-out visitors; logged-in visitors never see it
-  useEffect(() => {
-    if (profile === null && !onLoginPage) go("/login", { replace: true });
-    if (profile && onLoginPage) go("/", { replace: true });
-  }, [profile, onLoginPage, go]);
-  const login = async (name, mobile) => { const problem = await save(name, mobile); if (!problem) go("/"); return problem; };
-  const signOut = async () => { await logout(); go("/login"); };
-
   const labels = hunt.status?.labels || FALLBACK_PLATFORMS;
   const cheapest = useMemo(() => {   // the cheapest bill of the latest hunt, so a new hunt's result shows up even if an older deal was cheaper
     const latest = Math.max(0, ...all.deals.map((d) => d.hunt_id || 0));
@@ -82,21 +71,17 @@ export default function App() {
     return pool.reduce((best, d) => (!best || d.final_payable < best.final_payable ? d : best), null);
   }, [all.deals]);
 
-  if (profile === undefined) return <div className="boot" aria-busy="true" />;
-  if (profile === null) return <LoginPage onSubmit={login} />;
-  if (onLoginPage) return <div className="boot" aria-busy="true" />;
-
   const needsLogin = Object.values(hunt.status?.platforms || {}).some((ok) => !ok);
   return (
     <>
       <SmoothScroll /><Backdrop /><Cursor />
       <ScrollFX />
-      <TopBar status={hunt.status} profile={profile} onSaveProfile={save} onLogout={signOut} />
+      <TopBar status={hunt.status} profile={profile} onSaveProfile={save} onLogout={signOut} hosted={hosted} onConnected={hunt.refreshStatus} />
       <main className="page">
         <PriceDrop budget={params.budget} />
         <Hero params={params} setParams={setParams} running={hunt.running} startedAt={hunt.startedAt} found={hunt.events.filter((e) => e.type === "deal").length}
           error={hunt.error || dealsError} onRun={() => hunt.run(params)} onStop={hunt.stop} cheapest={cheapest} labels={labels}
-          mobile={formatMobile(profile.mobile)} needsLogin={needsLogin} chime={chime} setChime={setChime} addressBook={addressBook} />
+          mobile={formatMobile(profile.mobile)} needsLogin={needsLogin} hosted={hosted} chime={chime} setChime={setChime} addressBook={addressBook} />
         <Reveal from="left"><DealOfHour deals={all.deals}
           alarms={alarmClock.alarms} snooze={alarmClock.snooze} onOpenAlarms={() => setAlarmOpen(true)} /></Reveal>
         <Reveal from="right" delay={120}><Ticker deals={all.deals} /></Reveal>
@@ -115,4 +100,24 @@ export default function App() {
       <Reveal as="footer" className="page mt-[var(--section-gap)] border-t border-line pb-10 pt-7 text-sm text-muted"><span>FoodHunt200 finds the deal. You place the order.</span><div className="mt-6 overflow-hidden font-display text-[clamp(26px,8.4vw,140px)] font-extrabold leading-[.9] tracking-[-.05em] text-transparent [-webkit-text-stroke:1.5px_var(--glow)]" aria-hidden="true"><LineReveal text="FOODHUNT200" /></div></Reveal>
     </>
   );
+}
+
+export default function App() {
+  const { profile, save, logout, hosted } = useProfile();
+  const [path, go] = usePath();
+  const onLoginPage = path === "/login";
+
+  // /login is the only page for logged-out visitors; logged-in visitors never see it
+  useEffect(() => {
+    if (profile === null && !onLoginPage) go("/login", { replace: true });
+    if (profile && onLoginPage) go("/", { replace: true });
+  }, [profile, onLoginPage, go]);
+  const login = async (name, mobile, code) => { const problem = await save(name, mobile, code); if (!problem) go("/"); return problem; };
+  const signOut = async () => { await logout(); go("/login"); };
+
+  if (profile === undefined) return <Boot />;
+  if (profile === null) return <LoginPage onSubmit={login} hosted={hosted} />;
+  if (onLoginPage) return <Boot />;
+  // everything that talks to the API lives below, so it only loads once you are signed in
+  return <Dashboard profile={profile} hosted={hosted} save={save} signOut={signOut} />;
 }

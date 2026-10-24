@@ -26,6 +26,12 @@ export const getWeekly = () => get("/api/v1/insights/weekly");
 export const getCompare = () => get("/api/v1/deals/compare");
 export const getHeatmap = () => get("/api/v1/deals/heatmap");
 
+export const getAuthConfig = () => get("/api/v1/auth/config");
+export const login = (body) => send("POST", "/api/v1/auth/login", body);
+export const logoutSession = () => send("POST", "/api/v1/auth/logout");
+export const connectPlatform = (name) => send("POST", `/api/v1/auth/platform/${name}/connect`);
+export const platformStatus = (name) => get(`/api/v1/auth/platform/${name}/status`);
+
 export const getProfile = () => get("/api/v1/profile");
 export const saveProfile = (body) => send("PUT", "/api/v1/profile", body);
 export const clearProfile = () => send("DELETE", "/api/v1/profile");

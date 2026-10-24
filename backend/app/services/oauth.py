@@ -15,7 +15,11 @@ from urllib.parse import parse_qs, urlparse
 from mcp.client.auth import OAuthClientProvider, TokenStorage
 from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthToken
 
+from cryptography.fernet import Fernet, InvalidToken
+
+from app import config
 from app.config import TOKEN_DIR
+from app.db import repository as repo
 
 
 
@@ -49,6 +53,26 @@ class FileTokenStorage(TokenStorage):
         d = self._load(); d["client"] = info.model_dump(mode="json"); self._save(d)
 
 
+class DbTokenStorage(FileTokenStorage):
+    """Hosted mode: the same token store, kept encrypted inside the database so it survives restarts and is backed up with it."""
+
+    def __init__(self, name: str):
+        self.name = name
+        self.fernet = Fernet(config.TOKEN_KEY.encode())
+
+    def _load(self) -> dict:
+        blob = repo.get_secret(self.name)
+        if blob is None:
+            return {}
+        try:
+            return json.loads(self.fernet.decrypt(blob))
+        except (InvalidToken, json.JSONDecodeError):
+            return {}   # a wrong key or damaged data counts as "not logged in"
+
+    def _save(self, data: dict) -> None:
+        repo.set_secret(self.name, self.fernet.encrypt(json.dumps(data).encode()))
+
+
 class _CallbackCatcher:
     """Tiny one-shot local web server that waits for ?code=...&state=..."""
 
@@ -78,8 +102,12 @@ class _CallbackCatcher:
 
 
 def make_oauth(name: str, server_url: str, port: int, client_id: str = "", client_secret: str = "") -> OAuthClientProvider:
-    redirect = f"http://localhost:{port}/callback"
-    storage = FileTokenStorage(name)
+    if config.HOSTED:   # the login page returns to this server's public address and the tokens live in the database
+        from app.services import platform_login
+        redirect, storage = platform_login.redirect_uri(name), DbTokenStorage(name)
+        redirect_handler, callback_handler = platform_login.handlers(name)
+    else:
+        redirect, storage = f"http://localhost:{port}/callback", FileTokenStorage(name)
 
     # If the platform gave you a registered client_id (Swiggy Builders Club does), pre-seed it
     # so the SDK skips dynamic client registration.
@@ -95,18 +123,19 @@ def make_oauth(name: str, server_url: str, port: int, client_id: str = "", clien
         )
         d = storage._load(); d["client"] = info.model_dump(mode="json"); storage._save(d)
 
-    catcher = _CallbackCatcher(port)
+    if not config.HOSTED:
+        catcher = _CallbackCatcher(port)
 
-    async def redirect_handler(auth_url: str) -> None:
-        catcher.start()
-        print(f"\n[{name}] Opening browser to log in. If it doesn't open, visit:\n{auth_url}\n")
-        webbrowser.open(auth_url)
+        async def redirect_handler(auth_url: str) -> None:
+            catcher.start()
+            print(f"\n[{name}] Opening browser to log in. If it doesn't open, visit:\n{auth_url}\n")
+            webbrowser.open(auth_url)
 
-    async def callback_handler() -> tuple[str, str | None]:
-        ok = await asyncio.to_thread(catcher.done.wait, 300)
-        if not ok or "code" not in catcher.result:
-            raise RuntimeError(f"[{name}] Login timed out or was denied: {catcher.result}")
-        return catcher.result["code"], catcher.result.get("state")
+        async def callback_handler() -> tuple[str, str | None]:
+            ok = await asyncio.to_thread(catcher.done.wait, 300)
+            if not ok or "code" not in catcher.result:
+                raise RuntimeError(f"[{name}] Login timed out or was denied: {catcher.result}")
+            return catcher.result["code"], catcher.result.get("state")
 
     return OAuthClientProvider(
         server_url=server_url,
