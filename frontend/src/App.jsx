@@ -102,22 +102,36 @@ function Dashboard({ profile, hosted, save, signOut }) {
   );
 }
 
+const LOGIN_PATH = "/login", MAIN_PATH = "/foodHunt200";
+const sameRoute = (a, b) => a.replace(/\/+$/, "").toLowerCase() === b.toLowerCase();
+const ENTERED = "fh-entered";
+const wasEntered = () => { try { return sessionStorage.getItem(ENTERED) === "1"; } catch { return false; } };
+const markEntered = (on) => { try { on ? sessionStorage.setItem(ENTERED, "1") : sessionStorage.removeItem(ENTERED); } catch { /* storage blocked */ } };
+
 export default function App() {
   const { profile, save, logout, hosted } = useProfile();
   const [path, go] = usePath();
-  const onLoginPage = path === "/login";
+  // every new visit starts on /login, even with a saved profile; the app itself lives at /foodHunt200
+  const [entered, setEntered] = useState(wasEntered);
+  const signedIn = !!profile && entered;
+  const onLoginPage = sameRoute(path, LOGIN_PATH);
+  const onMainPage = sameRoute(path, MAIN_PATH);
 
-  // /login is the only page for logged-out visitors; logged-in visitors never see it
   useEffect(() => {
-    if (profile === null && !onLoginPage) go("/login", { replace: true });
-    if (profile && onLoginPage) go("/", { replace: true });
-  }, [profile, onLoginPage, go]);
-  const login = async (name, mobile, code) => { const problem = await save(name, mobile, code); if (!problem) go("/"); return problem; };
-  const signOut = async () => { await logout(); go("/login"); };
+    if (profile === undefined) return;
+    if (!signedIn && !onLoginPage) go(LOGIN_PATH, { replace: true });
+    if (signedIn && !onMainPage) go(MAIN_PATH, { replace: true });
+  }, [profile, signedIn, onLoginPage, onMainPage, go]);
+  const login = async (name, mobile, code) => {
+    const problem = await save(name, mobile, code);
+    if (!problem) { markEntered(true); setEntered(true); go(MAIN_PATH); }
+    return problem;
+  };
+  const signOut = async () => { markEntered(false); setEntered(false); await logout(); go(LOGIN_PATH); };
 
   if (profile === undefined) return <Boot />;
-  if (profile === null) return <LoginPage onSubmit={login} hosted={hosted} />;
-  if (onLoginPage) return <Boot />;
+  if (!signedIn) return <LoginPage onSubmit={login} hosted={hosted} />;
+  if (!onMainPage) return <Boot />;
   // everything that talks to the API lives below, so it only loads once you are signed in
   return <Dashboard profile={profile} hosted={hosted} save={save} signOut={signOut} />;
 }

@@ -26,7 +26,7 @@ Type: **Unbounded** (display, 700) + **Manrope** (text), both self-hosted via `@
 ## Brand and motion
 - **Logo**: `components/brand/Logo3D.jsx` is a CSS-3D rotating rupee coin (stacked discs, cerulean at the back to pink at the front) with an
   orbiting ring; `LogoMark.jsx` is the flat SVG mark for the top bar and `public/favicon.svg`.
-- **Login** lives at `/login` (client-side route in `hooks/usePath.js`; FastAPI serves the app for any non-`/api` path). Logged-out visitors are sent there, logged-in ones never see it. It is a local profile (name + 10-digit mobile), stored in SQLite via `/api/v1/profile`. The number is not OTP-verified; Zomato and
+- **Login** lives at `/login` (client-side route in `hooks/usePath.js`; FastAPI serves the app for any non-`/api` path). Every new browser session starts there, even with a saved profile (`sessionStorage` flag `fh-entered`); signing in goes to the app at `/foodHunt200`, and any other path is redirected to one of the two. It is a local profile (name + 10-digit mobile), stored in SQLite via `/api/v1/profile`. The number is not OTP-verified; Zomato and
   Swiggy keep their own OTP logins. The profile menu in the top bar can change the number or log out.
 - **Motion** (`styles/motion.css`, `hooks/useInView|useCountUp|useMagnetic`, `components/motion/`): scroll reveal, count-up numbers, hunt radar,
   receipt print-in, deal-arrival flash, cursor spotlight, magnetic run button, deals ticker. Transform and opacity only; all of it is switched
@@ -62,3 +62,9 @@ Type: **Unbounded** (display, 700) + **Manrope** (text), both self-hosted via `@
 pointer-following light, the turning 3D coin in the hero, the ring button (leans toward the pointer, radar pulses while hunting),
 the receipt printing in, the deals ticker, row lift and new-deal flash, the big alarm clock. They need these inspector exemptions:
 `--allow micro-label,text-shadow,button-fx,app-title-size,mixed-font-headline`. All of it stops under `prefers-reduced-motion`.
+
+## QR code (cart link)
+`components/deals/QrCode.jsx` shows the cart link as a 13 s loop: the deal's dish turns, breaks into cubes that fly into the code, holds, and rebuilds.
+`lib/dishKind.js` picks the dish from the deal's items text (burger, pizza, biryani, noodles, roll, dessert, else curry) and gives the QR its colour:
+the dish colour darkened until it scans. `lib/dishes.js` builds each dish, `lib/qrScene.js` runs the scene (three r128, lazy-loaded). Holds on the code by default;
+reduced motion starts on the code. No WebGL falls back to a flat QR in the same colour. After changing colours, re-check that a decoder reads the held frame.

@@ -59,7 +59,7 @@ export default function ProfileMenu({ profile, onSave, onLogout, className = "",
         footer={<><button type="button" className="btn-text" onClick={closeDialog}>Cancel</button><button form="change-number" className="btn-solid">Save number</button></>}>
         <form id="change-number" onSubmit={change} className="grid gap-3.5" noValidate>
           <label>New mobile number
-            <PhoneField data-autofocus value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="98765 43210" />
+            <PhoneField id="profile-mobile" name="mobile" autoComplete="tel-national" aria-label="Mobile number, 10 digits" data-autofocus value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="98765 43210" />
           </label>
           {error && <p className="error" role="alert">{error}</p>}
           <p className="muted">Not verified by an OTP. Zomato and Swiggy still ask for their own.</p>

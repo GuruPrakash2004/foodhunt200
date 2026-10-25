@@ -69,14 +69,14 @@ export default function LoginPage({ onSubmit, hosted = false }) {
           <h1 id="login-title" className="font-display text-[26px] font-bold leading-[1.15] tracking-[-.04em]">FOODHUNT<span className="text-pink">200</span></h1>
           <p className={`text-base text-muted ${RISE}`} style={{ "--i": 0 }}>Who is hunting? Your name and number stay on this computer.</p>
           <label className={RISE} style={{ "--i": 1 }}>Your name
-            <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={40} placeholder="e.g. Guru" autoFocus />
+            <input id="login-name" name="name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={40} placeholder="e.g. Guru" autoFocus />
           </label>
           <label className={RISE} style={{ "--i": 2 }}>Mobile number
-            <PhoneField value={mobile} onChange={(e) => setMobile(e.target.value)} autoComplete="tel-national" placeholder="98765 43210" aria-label="Mobile number, 10 digits" />
+            <PhoneField id="login-mobile" name="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} autoComplete="tel-national" placeholder="98765 43210" aria-label="Mobile number, 10 digits" />
           </label>
           {hosted && (
             <label className={RISE} style={{ "--i": 3 }}>Access code
-              <input type="password" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="current-password" maxLength={200} placeholder="Your private code" />
+              <input id="login-code" name="access_code" type="password" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="current-password" maxLength={200} placeholder="Your private code" />
             </label>
           )}
           {error && <p className="error !mt-0" role="alert">{error}</p>}
