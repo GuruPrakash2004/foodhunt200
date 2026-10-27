@@ -64,9 +64,9 @@ class ModelRouter:
         except OSError:
             pass  # remembering is a nicety
 
-    def _order(self, extra: list[str]) -> list[str]:
+    def _order(self, extra: list[str], prefer: tuple = ()) -> list[str]:
         seen, order = set(), []
-        for name in [self.current, *self.preferred, *extra]:
+        for name in [*prefer, self.current, *self.preferred, *extra]:
             if name and name not in seen:
                 seen.add(name)
                 order.append(name)
@@ -74,16 +74,16 @@ class ModelRouter:
         usable = [m for m in order if self.bad_until.get(m, 0) <= now]
         return usable or order  # if everything is cooling down, try them all rather than give up
 
-    async def generate(self, messages: list[dict], tools: list[dict], on_switch=lambda old, new, why: None):
-        """One model call with automatic fallback. Returns the assistant message."""
-        started_on = self.current
+    async def generate(self, messages: list[dict], tools: list[dict], on_switch=lambda old, new, why: None, prefer: tuple = ()):
+        """One model call with automatic fallback. Returns the assistant message. `prefer` models are tried first and never become the remembered model."""
+        started_on = prefer[0] if prefer else self.current
         reported: set[str] = set()
         pauses = list(RETRY_PAUSES)
         tried: list[str] = []
         extra: list[str] = []
         last: Exception | None = None
         while True:
-            candidates = [m for m in self._order(extra) if m not in tried]
+            candidates = [m for m in self._order(extra, prefer) if m not in tried]
             if not candidates and self.discovered is None:
                 self.discovered = await nvidia_models.discover()   # only look the list up once the known models have failed
                 extra = self.discovered
@@ -106,7 +106,7 @@ class ModelRouter:
                 code = getattr(e, "code", None) or getattr(e, "status_code", None)
                 self.strikes[model] = self.strikes.get(model, 0) + 1
                 self.bad_until[model] = time.monotonic() + cooldown_for(code, self.strikes[model])
-                nxt = [m for m in self._order(extra) if m not in tried]
+                nxt = [m for m in self._order(extra, prefer) if m not in tried]
                 if nxt:
                     on_switch(model, nxt[0], str(e)[:120] or type(e).__name__)
                     reported.add(nxt[0])
@@ -114,9 +114,9 @@ class ModelRouter:
             if model != started_on and model not in reported:  # found after the model list was looked up
                 on_switch(started_on, model, "previous model unavailable")
             self.strikes[model] = 0
-            if model != self.current:
+            if not prefer and model != self.current:
                 self._remember(model)
-            self.current = model
+                self.current = model
             return msg
 
 

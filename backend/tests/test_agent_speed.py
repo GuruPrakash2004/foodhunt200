@@ -77,3 +77,93 @@ def test_agent_loop_runs_tools_feeds_results_back_and_finishes(monkeypatch):
     assert out == "best is the thali"
     assert seen[0][0] == ["system", "user"] and seen[1][0] == ["system", "user", "assistant", "tool"]
     assert "zomato__search" not in seen[0][1] and "swiggy__search_menu" in seen[0][1]   # only this platform's tools, plus record_deal / finish
+
+
+def test_search_terms_are_dealt_out_to_parallel_workers():
+    from app.services.agent import split_terms
+    assert split_terms("thali, biryani, rice bowl, meals, dosa, combo, rolls", 3) == ["thali, meals, rolls", "biryani, dosa", "rice bowl, combo"]
+    assert split_terms("thali, biryani", 5) == ["thali", "biryani"]   # never more workers than terms
+    assert split_terms("thali", 3) == ["thali"]
+
+
+def test_workers_take_turns_on_one_platform_cart():
+    async def go():
+        h = Hunt(argparse.Namespace(budget=200, verbose=False))
+        order = []
+
+        async def worker(n):
+            from app.services.agent import _WORKER
+            _WORKER.set(SimpleNamespace(n=n, holds=False))
+            await h._take_cart("zomato")
+            order.append(("in", n)); await asyncio.sleep(0.05); order.append(("out", n))
+            h._release_cart("zomato")
+        await asyncio.gather(worker(0), worker(1))
+        return order
+    order = asyncio.run(go())
+    assert order[0][0] == "in" and order[1][0] == "out"   # the second worker only enters after the first has left
+
+
+def test_cross_check_starts_as_soon_as_a_cheap_deal_is_recorded():
+    from app.services.pricing import Deal
+
+    async def go():
+        started = []
+
+        class H(Hunt):
+            async def _cross_one(self, worker, deal, other):
+                started.append((deal.restaurant, other))
+        h = H(argparse.Namespace(budget=200, verbose=False))
+        h.sessions = {"zomato": object(), "swiggy": object()}
+        for name, price in [("A", 150), ("B", 120), ("C", 130), ("D", 190)]:
+            d = Deal(platform="zomato", restaurant=name, items="x", item_total=price, final_payable=price)
+            h.deals.append(d)
+            h._maybe_cross_check(d)
+        await h.cross_check()
+        return started
+    started = asyncio.run(go())
+    assert sorted(r for r, _ in started) == ["A", "B", "C"] and all(o == "swiggy" for _, o in started)   # D never made the cheapest three
+
+
+def test_scouts_queue_candidates_and_pricers_take_them_cheapest_first():
+    async def go():
+        h = Hunt(argparse.Namespace(budget=200, max_carts=2, verbose=False))
+        assert "Queued" in h.propose("zomato", {"restaurant": "A", "items": "Thali", "est_price": 150})
+        assert h.propose("zomato", {"restaurant": "a", "items": "thali", "est_price": 150}) == "Already queued."
+        h.propose("zomato", {"restaurant": "B", "items": "Roll", "est_price": 90})
+        h._end_of_candidates("zomato")
+        first = json.loads(await h.next_candidate("zomato"))
+        second = json.loads(await h.next_candidate("zomato"))
+        third = await h.next_candidate("zomato")          # the allowance (max_carts=2) is used up
+        return first, second, third
+    import json
+    first, second, third = asyncio.run(go())
+    assert (first["restaurant"], second["restaurant"]) == ("B", "A") and third.startswith("NO MORE")
+
+
+def test_pricer_waits_for_scouts_then_stops_when_they_are_done():
+    async def go():
+        h = Hunt(argparse.Namespace(budget=200, max_carts=5, verbose=False))
+        waiting = asyncio.create_task(h.next_candidate("swiggy"))
+        await asyncio.sleep(0.05)
+        assert not waiting.done()                          # nothing queued yet: the pricer waits
+        h._end_of_candidates("swiggy")
+        return await waiting, await h.next_candidate("swiggy")   # the end marker is left for every pricer
+    a, b = asyncio.run(go())
+    assert a.startswith("NO MORE") and b.startswith("NO MORE")
+
+
+def test_scouts_only_get_reading_tools():
+    h = Hunt(argparse.Namespace(budget=200, verbose=False))
+    h.tools += [{"name": n, "description": "d", "input_schema": {"type": "object", "properties": {}}}
+                for n in ("swiggy__search_menu", "swiggy__update_food_cart", "swiggy__apply_food_coupon")]
+    names = lambda role: {t["function"]["name"] for t in h._openai_tools("swiggy", role)}
+    assert names("scout") == {"swiggy__search_menu", "propose_candidate", "finish"}
+    assert "swiggy__update_food_cart" in names("pricer") and "next_candidate" in names("pricer") and "propose_candidate" not in names("pricer")
+    assert "next_candidate" not in names("hunt")
+
+
+def test_all_prompt_roles_fill_in():
+    from app.services.agent import build_prompt
+    a = argparse.Namespace(budget=200, max_carts=6, diet="any", address="Home", queries="thali", extra_items=2)
+    for role in ("hunt", "scout", "pricer"):
+        assert "{" not in build_prompt(a, role)

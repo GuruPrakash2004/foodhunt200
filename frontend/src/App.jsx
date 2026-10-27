@@ -50,6 +50,7 @@ function Dashboard({ profile, hosted, save, signOut }) {
     else if (e.type === "alert") push({ kind: "alert", title: `Alert: ${e.watch}`, text: e.text, ms: 9000 });
     else if (e.type === "error") push({ kind: "error", title: "Hunt problem", text: e.text, ms: 10000 });
     else if (e.type === "status" && /Switched to/.test(e.text || "")) push({ kind: "info", title: "Switched model", text: e.text.replace(/\(.*?\)\.? /, ""), ms: 7000 });
+    else if (e.type === "status" && /^Checking .*top deal/.test(e.text || "")) push({ kind: "info", title: "Cross-checking prices", text: e.text, ms: 8000 });
     else if (e.type === "done") push({ kind: e.status === "error" ? "error" : "info", title: e.status === "error" ? "Hunt failed" : e.status === "stopped" ? "Hunt stopped" : "Hunt finished", text: (e.summary || "").slice(0, 140) });
   };
   const [alarmOpen, setAlarmOpen] = useState(false);

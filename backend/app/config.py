@@ -57,6 +57,10 @@ BLOCKED_TOOLS = re.compile(
     r"(place|confirm|create)_?\w*order|checkout|payment|^pay_|_pay$|upi|qr_?code|cancel|track", re.I)
 
 MAX_TURNS = int(os.getenv("FOODHUNT_MAX_TURNS", "60"))
+SCOUTS_PER_PLATFORM = int(os.getenv("FOODHUNT_SCOUTS", "2"))     # read-only sub-agents that search and read menus, then queue candidates
+PRICERS_PER_PLATFORM = int(os.getenv("FOODHUNT_PRICERS", "2"))   # sub-agents that take candidates from the queue and read their real bills; 0 = the older all-in-one workers
+SCOUT_MODELS = [m.strip() for m in os.getenv("FOODHUNT_SCOUT_MODELS", "minimaxai/minimax-m3.1-flash,nvidia/nemotron-3.5-lightning-30b-a3b").split(",") if m.strip()]   # fast models for scouts (no money handled)
+WORKERS_PER_PLATFORM = max(1, int(os.getenv("FOODHUNT_WORKERS", "3")))   # parallel sub-agents per platform, each with its own slice of the search terms
 
 DEAL_MAX_AGE_HOURS = float(os.getenv("FOODHUNT_DEAL_MAX_AGE_HOURS", "4"))   # older deals are not shown: their prices and offers have moved on
 DEFAULT_BUDGET = float(os.getenv("FOODHUNT_BUDGET", 200))

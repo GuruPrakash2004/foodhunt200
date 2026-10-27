@@ -5,4 +5,4 @@ __pycache__/
 .pytest_cache/
 frontend/node_modules/
 frontend/dist/
-.claude/skills/design-taste-frontend/.taste-skill/
+.claude/
